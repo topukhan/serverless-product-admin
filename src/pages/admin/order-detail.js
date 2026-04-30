@@ -201,7 +201,7 @@ export async function AdminOrderDetailPage(params) {
 
 function customerCard(order) {
   const phoneDigits = (order.customer_phone || '').replace(/\D/g, '');
-  const waLink = phoneDigits ? `https://wa.me/${phoneDigits}` : null;
+  const waLink = phoneDigits ? `https://wa.me/${toBdInternational(phoneDigits)}` : null;
   const telLink = phoneDigits ? `tel:${order.customer_phone}` : null;
   return `
     <div class="card p-5 sm:p-6">
@@ -388,6 +388,17 @@ function actionButton(next) {
       <p class="text-[11px] muted mt-1.5 px-1 leading-snug">${escapeHtml(cfg.hint)}</p>
     </div>
   `;
+}
+
+// WhatsApp's wa.me link wants an international-format number with no plus
+// sign. Customers in Bangladesh typically enter `01XXXXXXXXX` (11 digits with
+// a leading 0). We rewrite that to `8801XXXXXXXXX`. Numbers already in
+// `880…` form are passed through.
+function toBdInternational(digits) {
+  if (!digits) return '';
+  if (digits.startsWith('880')) return digits;
+  if (digits.startsWith('0'))   return '880' + digits.slice(1);
+  return '880' + digits;
 }
 
 function zoneLabelOf(zone) {

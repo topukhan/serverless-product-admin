@@ -9,7 +9,6 @@ import {
   updateTheme,
   deleteTheme,
   setActiveTheme,
-  setDarkTheme,
 } from '../../services/admin-branding.js';
 import {
   refreshBranding,
@@ -75,7 +74,6 @@ export async function AdminBrandingPage() {
       settings,
       themes,
       onActiveChanged: (id) => { settings.active_theme_id = id; },
-      onDarkChanged:   (id) => { settings.dark_theme_id   = id; },
       onThemesChanged: (next) => { themes = next; },
     })
   );
@@ -219,168 +217,53 @@ function AssetSlot({ kind, label, currentUrl }) {
  * Section 3 — Themes (switcher + editor)
  * ===================================================================== */
 
-function ThemesSection({ settings, themes, onActiveChanged, onDarkChanged, onThemesChanged }) {
+function ThemesSection({ settings, themes, onActiveChanged, onThemesChanged }) {
   const wrap = document.createElement('div');
 
   let editorState = null;        // null | { theme | null (= new) }
   let activeId = settings.active_theme_id;
-  let darkId   = settings.dark_theme_id;
 
   wrap.innerHTML = `
     <div class="card p-5 sm:p-6">
-      <div class="flex items-center justify-between mb-2 gap-3 flex-wrap">
+      <div class="flex items-center justify-between mb-4 gap-3 flex-wrap">
         <div>
           <h2 class="font-semibold text-lg">Themes</h2>
-          <p class="text-xs muted mt-0.5">
-            Click <strong>Use this</strong> on a theme to set it as the active palette
-            for its mode. The site's <em>active light</em> theme paints the public site
-            by default; if a dark theme is set, visitors can flip with the header toggle.
-          </p>
+          <p class="text-xs muted mt-0.5">Pick the active palette, or build a custom one.</p>
         </div>
         <button data-create class="btn btn-primary text-sm">+ New theme</button>
       </div>
-
-      <div class="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-3" data-status>
-        <div data-status-light class="rounded-md p-3 text-sm flex items-center gap-3"
-             style="border:1px solid var(--color-border); background: var(--color-bg)"></div>
-        <div data-status-dark class="rounded-md p-3 text-sm flex items-center gap-3"
-             style="border:1px solid var(--color-border); background: var(--color-bg)"></div>
-      </div>
-
-      <div class="mt-5 space-y-2">
-        <div class="text-xs uppercase tracking-wider muted">☀️ Light themes</div>
-        <div data-list-light class="space-y-3"></div>
-      </div>
-      <div class="mt-6 space-y-2">
-        <div class="text-xs uppercase tracking-wider muted">🌙 Dark themes</div>
-        <div data-list-dark class="space-y-3"></div>
-      </div>
+      <div data-list class="space-y-3"></div>
     </div>
 
     <div data-editor class="mt-6"></div>
   `;
 
-  const lightListEl = wrap.querySelector('[data-list-light]');
-  const darkListEl  = wrap.querySelector('[data-list-dark]');
-  const statusLight = wrap.querySelector('[data-status-light]');
-  const statusDark  = wrap.querySelector('[data-status-dark]');
+  const listEl = wrap.querySelector('[data-list]');
   const editorEl = wrap.querySelector('[data-editor]');
   const createBtn = wrap.querySelector('[data-create]');
 
-  function findTheme(id) { return themes.find((t) => t.id === id); }
-
   function rerender() {
-    /* Status row at the top — at-a-glance "what's active". */
-    const lt = findTheme(activeId);
-    statusLight.innerHTML = `
-      <span class="inline-block w-2.5 h-2.5 rounded-full shrink-0" style="background:#16a34a"></span>
-      <span class="flex-1">
-        <span class="text-xs uppercase muted tracking-wider">Active light</span>
-        <span class="block font-medium">${lt ? escapeHtml(lt.name) : 'None — pick one below'}</span>
-      </span>
-    `;
-    const dt = findTheme(darkId);
-    statusDark.innerHTML = dt ? `
-      <span class="inline-block w-2.5 h-2.5 rounded-full shrink-0" style="background:#1d4ed8"></span>
-      <span class="flex-1">
-        <span class="text-xs uppercase muted tracking-wider">Active dark</span>
-        <span class="block font-medium">${escapeHtml(dt.name)}</span>
-      </span>
-      <button data-disable-dark class="text-xs hover:underline" style="color:#b91c1c">Disable</button>
-    ` : `
-      <span class="inline-block w-2.5 h-2.5 rounded-full shrink-0" style="background:var(--color-border)"></span>
-      <span class="flex-1">
-        <span class="text-xs uppercase muted tracking-wider">Dark mode</span>
-        <span class="block font-medium muted">Disabled — visitors won't see the toggle</span>
-      </span>
-    `;
-
-    const disableBtn = statusDark.querySelector('[data-disable-dark]');
-    if (disableBtn) {
-      disableBtn.addEventListener('click', async () => {
-        const ok = await confirmDialog({
-          title: 'Disable dark mode?',
-          message: 'The header toggle on the public site will disappear. You can re-enable any time by activating a dark theme below.',
-          confirmText: 'Disable',
-          variant: 'danger',
-        });
-        if (!ok) return;
-        await applyDark(null);
-      });
-    }
-
-    /* Two grouped lists. */
-    const lights = themes.filter((t) => (t.mode || 'light') === 'light');
-    const darks  = themes.filter((t) => (t.mode || 'light') === 'dark');
-
-    lightListEl.replaceChildren(...(lights.length
-      ? lights.map((t) => themeRow(t))
-      : [emptySlot('No light themes yet — create one above.')]));
-    darkListEl.replaceChildren(...(darks.length
-      ? darks.map((t) => themeRow(t))
-      : [emptySlot('No dark themes yet. Create one (set Mode to Dark) to enable the dark toggle on the public site.')]));
-
+    listEl.replaceChildren(...themes.map((t) => themeRow(t)));
     editorEl.replaceChildren();
     if (editorState) {
       editorEl.appendChild(themeEditor(editorState));
     }
   }
 
-  function emptySlot(msg) {
-    const div = document.createElement('div');
-    div.className = 'rounded-md p-4 text-sm muted text-center';
-    div.style.border = '1px dashed var(--color-border)';
-    div.textContent = msg;
-    return div;
-  }
-
-  async function applyLight(id) {
-    try {
-      await setActiveTheme(id);
-      activeId = id;
-      onActiveChanged(id);
-      await refreshBranding();
-      showToast('Light theme activated', { variant: 'success' });
-      rerender();
-    } catch (err) {
-      showToast(err.message || 'Failed to activate', { variant: 'error' });
-    }
-  }
-  async function applyDark(id) {
-    try {
-      await setDarkTheme(id);
-      darkId = id;
-      onDarkChanged(id);
-      await refreshBranding();
-      showToast(id ? 'Dark theme activated' : 'Dark mode disabled', { variant: 'success' });
-      rerender();
-    } catch (err) {
-      showToast(err.message || 'Failed to update', { variant: 'error' });
-    }
-  }
-
   function themeRow(theme) {
-    const mode = theme.mode || 'light';
-    const isActive = mode === 'light' ? theme.id === activeId : theme.id === darkId;
+    const isActive = theme.id === activeId;
     const row = document.createElement('div');
     row.className = 'card p-4 flex items-center gap-4';
     if (isActive) {
-      row.style.borderColor = mode === 'light' ? '#16a34a' : '#1d4ed8';
-      row.style.background = mode === 'light' ? '#f0fdf4' : 'rgba(29, 78, 216, 0.05)';
+      row.style.borderColor = 'var(--color-primary)';
+      row.style.boxShadow = 'var(--ring-focus)';
     }
 
     row.innerHTML = `
+      <input type="radio" name="active-theme" data-active
+             class="shrink-0" ${isActive ? 'checked' : ''} />
       <div class="flex-1 min-w-0">
-        <div class="flex items-center gap-2 flex-wrap">
-          <span class="font-medium">${escapeHtml(theme.name)}</span>
-          ${isActive
-            ? `<span class="text-[10px] font-semibold px-1.5 py-0.5 rounded-full"
-                     style="background:${mode === 'light' ? '#dcfce7' : '#dbeafe'};
-                            color:${mode === 'light' ? '#166534' : '#1e40af'}">
-                 ✓ Active ${mode}
-               </span>`
-            : ''}
-        </div>
+        <div class="font-medium">${escapeHtml(theme.name)}</div>
         <div class="flex gap-1 mt-2">
           ${THEME_FIELDS.map((f) => `
             <span class="inline-block w-5 h-5 rounded"
@@ -391,21 +274,25 @@ function ThemesSection({ settings, themes, onActiveChanged, onDarkChanged, onThe
         </div>
       </div>
       <div class="flex gap-2 shrink-0">
-        ${isActive
-          ? ''
-          : `<button data-use class="btn btn-primary text-xs">Use this</button>`}
         <button data-edit class="btn btn-ghost text-xs">Edit</button>
         <button data-delete class="btn btn-ghost text-xs" style="color:#b91c1c">Delete</button>
       </div>
     `;
 
-    const useBtn = row.querySelector('[data-use]');
-    if (useBtn) {
-      useBtn.addEventListener('click', () => {
-        if (mode === 'light') applyLight(theme.id);
-        else applyDark(theme.id);
-      });
-    }
+    row.querySelector('[data-active]').addEventListener('change', async (e) => {
+      if (!e.target.checked) return;
+      try {
+        await setActiveTheme(theme.id);
+        activeId = theme.id;
+        onActiveChanged(theme.id);
+        await refreshBranding();
+        showToast(`Activated "${theme.name}"`, { variant: 'success' });
+        rerender();
+      } catch (err) {
+        showToast(err.message || 'Could not activate', { variant: 'error' });
+        rerender();
+      }
+    });
 
     row.querySelector('[data-edit]').addEventListener('click', () => {
       editorState = { theme };
@@ -414,8 +301,8 @@ function ThemesSection({ settings, themes, onActiveChanged, onDarkChanged, onThe
     });
 
     row.querySelector('[data-delete]').addEventListener('click', async () => {
-      if (theme.id === activeId || theme.id === darkId) {
-        showToast('Activate a different theme for this slot before deleting.', { variant: 'error' });
+      if (theme.id === activeId) {
+        showToast('Activate another theme before deleting this one.', { variant: 'error' });
         return;
       }
       const ok = await confirmDialog({
@@ -454,27 +341,10 @@ function ThemesSection({ settings, themes, onActiveChanged, onDarkChanged, onThe
       </div>
 
       <form data-form class="space-y-5">
-        <div class="grid sm:grid-cols-[1fr_auto] gap-3 items-end">
-          <div>
-            <label class="label" for="theme-name">Name</label>
-            <input id="theme-name" data-name class="input" maxlength="40" required
-                   value="${escapeHtml(seed.name || '')}" />
-          </div>
-          <div>
-            <span class="label">Mode</span>
-            <div class="flex" data-mode-group>
-              <button type="button" data-mode="light"
-                      class="text-xs px-3 py-2 rounded-l-md transition border-r-0"
-                      style="border:1px solid var(--color-border); background:var(--color-surface)">
-                ☀️ Light
-              </button>
-              <button type="button" data-mode="dark"
-                      class="text-xs px-3 py-2 rounded-r-md transition"
-                      style="border:1px solid var(--color-border); background:var(--color-surface)">
-                🌙 Dark
-              </button>
-            </div>
-          </div>
+        <div>
+          <label class="label" for="theme-name">Name</label>
+          <input id="theme-name" data-name class="input" maxlength="40" required
+                 value="${escapeHtml(seed.name || '')}" />
         </div>
 
         <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -511,27 +381,9 @@ function ThemesSection({ settings, themes, onActiveChanged, onDarkChanged, onThe
 
     // Wire color + hex pairs to live-preview.
     const draft = { ...seed };
-    if (!draft.mode) draft.mode = 'light';
     function applyPreview() {
       previewTheme(draft);
     }
-
-    /* Mode toggle. */
-    function paintModeButtons() {
-      card.querySelectorAll('[data-mode]').forEach((btn) => {
-        const active = btn.dataset.mode === draft.mode;
-        btn.style.background = active ? 'var(--color-primary)' : 'var(--color-surface)';
-        btn.style.color = active ? '#fff' : 'var(--color-text)';
-        btn.style.borderColor = active ? 'var(--color-primary)' : 'var(--color-border)';
-      });
-    }
-    paintModeButtons();
-    card.querySelectorAll('[data-mode]').forEach((btn) => {
-      btn.addEventListener('click', () => {
-        draft.mode = btn.dataset.mode;
-        paintModeButtons();
-      });
-    });
 
     THEME_FIELDS.forEach((f) => {
       const colorInput = card.querySelector(`[data-field="${f.key}"]`);
@@ -573,7 +425,7 @@ function ThemesSection({ settings, themes, onActiveChanged, onDarkChanged, onThe
           return;
         }
       }
-      const payload = { name, mode: draft.mode || 'light', ...Object.fromEntries(THEME_FIELDS.map((f) => [f.key, draft[f.key]])) };
+      const payload = { name, ...Object.fromEntries(THEME_FIELDS.map((f) => [f.key, draft[f.key]])) };
 
       const saveBtn = card.querySelector('[data-save]');
       saveBtn.disabled = true;
