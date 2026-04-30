@@ -21,6 +21,7 @@ import { AdminCategoriesPage } from './pages/admin/categories.js';
 import { AdminReviewsPage } from './pages/admin/reviews.js';
 import { AdminQuestionsPage } from './pages/admin/questions.js';
 import { AdminSiteSettings } from './pages/admin/site-settings.js';
+import { AdminBrandingPage } from './pages/admin/branding.js';
 import { AdminComingSoon } from './pages/admin/coming-soon.js';
 
 async function boot() {
@@ -64,7 +65,7 @@ async function boot() {
     requireAdmin(async () => AdminLayout(await AdminQuestionsPage(), { active: 'questions' }))
   );
   defineRoute('/admin/branding', async () =>
-    requireAdmin(async () => AdminLayout(AdminComingSoon('Branding & themes', 'Phase 3e'), { active: 'branding' }))
+    requireAdmin(async () => AdminLayout(await AdminBrandingPage(), { active: 'branding' }))
   );
 
   // Friendly 404 wrapped in the public Layout so it gets the header + footer.

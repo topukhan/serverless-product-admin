@@ -1,4 +1,5 @@
 import { supabase } from './supabase.js';
+import { toWebp } from '../lib/image.js';
 
 const PRODUCTS_BUCKET = 'products';
 
@@ -73,13 +74,14 @@ async function syncCategories(productId, categoryIds) {
 /* ---------- Storage helpers ---------- */
 
 export async function uploadProductImage(file) {
-  const ext = (file.name.split('.').pop() || 'jpg').toLowerCase();
+  const slim = await toWebp(file);
+  const ext = (slim.name.split('.').pop() || 'jpg').toLowerCase();
   const safeExt = /^[a-z0-9]+$/.test(ext) ? ext : 'jpg';
   const path = `${crypto.randomUUID()}.${safeExt}`;
 
   const { error } = await supabase.storage
     .from(PRODUCTS_BUCKET)
-    .upload(path, file, { contentType: file.type, upsert: false });
+    .upload(path, slim, { contentType: slim.type, upsert: false });
   if (error) throw error;
 
   const { data } = supabase.storage.from(PRODUCTS_BUCKET).getPublicUrl(path);

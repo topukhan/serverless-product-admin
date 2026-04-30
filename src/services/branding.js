@@ -88,6 +88,27 @@ export function _setCachedFlags(flags) {
   cachedFlags = { ...DEFAULT_FLAGS, ...flags };
 }
 
+// Refetch settings + active theme and re-apply CSS vars / document title /
+// favicon. Called by the admin Branding page after any save so the change is
+// visible immediately, without a full page reload.
+export async function refreshBranding() {
+  cachedBrand = null;
+  cachedTheme = null;
+  cachedFlags = null;
+  return loadBranding();
+}
+
+// Apply a theme palette object (in-memory only). Used for live preview while
+// the admin is editing a theme — does not persist anything.
+export function previewTheme(theme) {
+  applyBranding(getBranding(), { ...FALLBACK_THEME, ...theme });
+}
+
+// Restore the saved active theme after a preview.
+export function restoreTheme() {
+  applyBranding(getBranding(), getTheme());
+}
+
 function applyBranding(brand, theme) {
   const root = document.documentElement.style;
 

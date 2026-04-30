@@ -9,7 +9,15 @@ import { showToast } from './toast.js';
 //   u.el            -> mount this DOM node in the form
 //   u.getValue()    -> current url string ('' if empty)
 //   u.setValue(url) -> programmatic set
-export function ImageUploader({ initialUrl = '', label = 'Image', size = 'md' } = {}) {
+//
+// Pass `upload` to swap the storage target (defaults to product images).
+export function ImageUploader({
+  initialUrl = '',
+  label = 'Image',
+  size = 'md',
+  upload = uploadProductImage,
+  onChange = null,
+} = {}) {
   let value = initialUrl || '';
 
   const wrap = document.createElement('div');
@@ -28,11 +36,13 @@ export function ImageUploader({ initialUrl = '', label = 'Image', size = 'md' } 
   slot.style.maxWidth = size === 'sm' ? '180px' : 'none';
   wrap.appendChild(slot);
 
-  // Hidden file input.
+  // Hidden file input. Uses sr-only (visually hidden but still in the layout)
+  // because some mobile browsers — notably older Android Chrome — refuse to
+  // open the picker when .click() is invoked on a `display:none` input.
   const fileInput = document.createElement('input');
   fileInput.type = 'file';
   fileInput.accept = 'image/*';
-  fileInput.className = 'hidden';
+  fileInput.className = 'sr-only';
   wrap.appendChild(fileInput);
 
   // URL paste field.
@@ -68,6 +78,7 @@ export function ImageUploader({ initialUrl = '', label = 'Image', size = 'md' } 
         value = '';
         urlInput.value = '';
         paint();
+        onChange?.(value);
       });
     } else {
       slot.style.borderStyle = 'dashed';
@@ -99,16 +110,18 @@ export function ImageUploader({ initialUrl = '', label = 'Image', size = 'md' } 
     if (url) {
       value = url;
       paint();
+      onChange?.(value);
     }
   });
 
   async function doUpload(file) {
     showBusy(true);
     try {
-      const { url } = await uploadProductImage(file);
+      const { url } = await upload(file);
       value = url;
       urlInput.value = '';
       paint();
+      onChange?.(value);
     } catch (err) {
       showToast(err.message || 'Upload failed', { variant: 'error' });
     } finally {
