@@ -2,6 +2,7 @@ import {
   getAdminOrder,
   updateOrderStatus,
   updateOrderCharges,
+  updateOrderTrackingId,
 } from '../../services/admin-orders.js';
 import { STATUS_META, ZONE_LABELS } from '../../services/orders.js';
 import { getBranding } from '../../services/branding.js';
@@ -9,6 +10,7 @@ import { formatPrice } from '../../services/products.js';
 import { statusBadge } from '../../components/status-badge.js';
 import { confirmDialog } from '../../components/dialog.js';
 import { showToast } from '../../components/toast.js';
+import { notifyPendingChanged } from '../../components/admin-layout.js';
 import { escapeHtml } from '../../lib/dom.js';
 
 // Map of legal next statuses for each current status. Mirrors the SQL RPC.
@@ -73,6 +75,28 @@ export async function AdminOrderDetailPage(params) {
     wrap.querySelectorAll('[data-action]').forEach((btn) => {
       btn.addEventListener('click', () => handleAction(btn.dataset.action));
     });
+
+    /* Wire "Edit" tracking ID button. */
+    const editTrackingBtn = wrap.querySelector('[data-edit-tracking]');
+    if (editTrackingBtn) {
+      editTrackingBtn.addEventListener('click', async () => {
+        const next = await promptTrackingId({
+          title: 'Update tracking ID',
+          message: 'Replace the current tracking ID. Customers will see the new value immediately.',
+          initialValue: order.tracking_id || '',
+          confirmText: 'Save',
+        });
+        if (!next || next === order.tracking_id) return;
+        try {
+          await updateOrderTrackingId({ orderId: order.id, trackingId: next });
+          showToast('Tracking ID updated', { variant: 'success' });
+          order = await getAdminOrder(order.id);
+          rerender();
+        } catch (err) {
+          showToast(err.message || 'Update failed', { variant: 'error' });
+        }
+      });
+    }
 
     /* Wire charges form. */
     const chargesForm = wrap.querySelector('[data-charges-form]');
@@ -145,6 +169,7 @@ export async function AdminOrderDetailPage(params) {
       await updateOrderStatus({ orderId: order.id, newStatus, trackingId });
       showToast(`Status → ${newStatus}`, { variant: 'success' });
       order = await getAdminOrder(order.id);
+      notifyPendingChanged();
       rerender();
     } catch (err) {
       const msg = (err.message || '').toLowerCase();
@@ -328,8 +353,13 @@ function actionsCard(order, nexts, meta) {
 
       ${order.tracking_id
         ? `<div class="mt-5 pt-4 border-t text-xs" style="border-color:var(--color-border)">
-             <div class="muted">Tracking ID</div>
-             <div class="font-mono mt-0.5">${escapeHtml(order.tracking_id)}</div>
+             <div class="flex items-center justify-between">
+               <span class="muted">Tracking ID</span>
+               <button data-edit-tracking type="button"
+                       class="text-xs hover:underline"
+                       style="color:var(--color-primary)">Edit</button>
+             </div>
+             <div class="font-mono mt-0.5 break-all">${escapeHtml(order.tracking_id)}</div>
            </div>`
         : ''}
     </div>
@@ -359,7 +389,12 @@ function zoneLabelOf(zone) {
 
 /* ---------- Tracking ID prompt ---------- */
 
-function promptTrackingId() {
+function promptTrackingId({
+  title = 'Enter tracking ID',
+  message = 'Required to mark this order as shipped. Customers can search using either the order ID or this tracking ID.',
+  initialValue = '',
+  confirmText = 'Ship order',
+} = {}) {
   return new Promise((resolve) => {
     const backdrop = document.createElement('div');
     backdrop.className = 'fixed inset-0 z-50 flex items-center justify-center p-4';
@@ -369,17 +404,15 @@ function promptTrackingId() {
     const modal = document.createElement('div');
     modal.className = 'card w-full max-w-sm p-6 sm:p-7 shadow-lg';
     modal.innerHTML = `
-      <h2 class="text-base font-semibold">Enter tracking ID</h2>
-      <p class="muted text-sm mt-1">
-        Required to mark this order as shipped. Customers can search using
-        either the order ID or this tracking ID.
-      </p>
-      <input data-tid class="input mt-4" maxlength="60" autofocus
-             placeholder="e.g. RX-1234567890" />
+      <h2 class="text-base font-semibold">${escapeHtml(title)}</h2>
+      <p class="muted text-sm mt-1">${escapeHtml(message)}</p>
+      <input data-tid class="input mt-4" maxlength="300" autofocus
+             value="${escapeHtml(initialValue)}"
+             placeholder="e.g. RX-1234567890 or full URL" />
       <p data-err class="text-xs mt-1 hidden" style="color:#b91c1c">Tracking ID is required.</p>
       <div class="mt-5 flex justify-end gap-2">
         <button data-cancel class="btn btn-ghost">Cancel</button>
-        <button data-ok class="btn btn-primary">Ship order</button>
+        <button data-ok class="btn btn-primary">${escapeHtml(confirmText)}</button>
       </div>
     `;
     backdrop.appendChild(modal);
@@ -387,7 +420,7 @@ function promptTrackingId() {
 
     const input = modal.querySelector('[data-tid]');
     const errEl = modal.querySelector('[data-err]');
-    setTimeout(() => input.focus(), 50);
+    setTimeout(() => { input.focus(); input.select(); }, 50);
 
     function close(value) {
       backdrop.remove();

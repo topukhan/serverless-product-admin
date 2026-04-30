@@ -58,6 +58,15 @@ export async function updateOrderStatus({ orderId, newStatus, trackingId = null,
   return data;
 }
 
+export async function updateOrderTrackingId({ orderId, trackingId }) {
+  const { data, error } = await supabase.rpc('update_order_tracking_id', {
+    p_order_id: orderId,
+    p_tracking_id: trackingId,
+  });
+  if (error) throw error;
+  return data;
+}
+
 export async function updateOrderCharges({ orderId, discount, charge }) {
   const { data, error } = await supabase.rpc('update_order_charges', {
     p_order_id: orderId,

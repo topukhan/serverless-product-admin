@@ -27,6 +27,7 @@ import { AdminSiteSettings } from './pages/admin/site-settings.js';
 import { AdminBrandingPage } from './pages/admin/branding.js';
 import { AdminOrdersListPage } from './pages/admin/orders-list.js';
 import { AdminOrderDetailPage } from './pages/admin/order-detail.js';
+import { AdminNotificationsPage } from './pages/admin/notifications.js';
 import { AdminComingSoon } from './pages/admin/coming-soon.js';
 
 async function boot() {
@@ -81,6 +82,10 @@ async function boot() {
   );
   defineRoute('/admin/orders/:id', async (params) =>
     requireAdmin(async () => AdminLayout(await AdminOrderDetailPage(params), { active: 'orders' }))
+  );
+
+  defineRoute('/admin/notifications', async () =>
+    requireAdmin(async () => AdminLayout(await AdminNotificationsPage(), { active: 'notifications' }))
   );
 
   // Friendly 404 wrapped in the public Layout so it gets the header + footer.

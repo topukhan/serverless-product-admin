@@ -12,6 +12,7 @@ const NAV = [
   { key: 'reviews',       href: '#/admin/reviews',       label: 'Reviews',        icon: iconStar },
   { key: 'questions',     href: '#/admin/questions',     label: 'Questions',      icon: iconChat },
   { key: 'branding',      href: '#/admin/branding',      label: 'Branding',       icon: iconPalette },
+  { key: 'notifications', href: '#/admin/notifications', label: 'Notifications',  icon: iconBell },
   { key: 'site-settings', href: '#/admin/site-settings', label: 'Site settings',  icon: iconSliders },
 ];
 
@@ -24,8 +25,10 @@ export async function AdminLayout(content, { active = '' } = {}) {
 
   /* ---------- Sidebar ---------- */
   const aside = document.createElement('aside');
+  // Sticky on every screen size: full sidebar on lg+, top bar on mobile that
+  // stays pinned while the user scrolls.
   aside.className =
-    'lg:w-60 lg:shrink-0 lg:h-screen lg:sticky lg:top-0 lg:flex lg:flex-col ' +
+    'sticky top-0 z-30 lg:w-60 lg:shrink-0 lg:h-screen lg:flex lg:flex-col ' +
     'border-b lg:border-b-0 lg:border-r';
   aside.style.background = 'var(--color-surface)';
   aside.style.borderColor = 'var(--color-border)';
@@ -83,22 +86,42 @@ export async function AdminLayout(content, { active = '' } = {}) {
 
   root.append(aside, main);
 
-  // Fetch pending count and paint the Orders badge. Non-blocking.
-  getPendingOrderCount()
-    .then((count) => {
-      if (!count) return;
-      const link = aside.querySelector('a[href="#/admin/orders"]');
-      if (!link) return;
-      const span = document.createElement('span');
-      span.className = 'ml-auto text-[11px] font-semibold px-1.5 py-0.5 rounded-full';
-      span.style.background = '#b91c1c';
-      span.style.color = '#fff';
-      span.textContent = String(count);
-      link.appendChild(span);
-    })
-    .catch(() => {}); // non-fatal
+  // Each AdminLayout render claims "active" status. Pages that mutate orders
+  // call notifyPendingChanged() and we re-fetch + repaint the badge live.
+  activeAside = aside;
+  paintPendingBadge(aside);
 
   return root;
+}
+
+let activeAside = null;
+
+// Public hook: pages call this after they change an order's status so the
+// nav badge updates without a navigation away.
+export function notifyPendingChanged() {
+  if (activeAside && activeAside.isConnected) paintPendingBadge(activeAside);
+}
+
+async function paintPendingBadge(aside) {
+  let count = 0;
+  try { count = await getPendingOrderCount(); } catch { /* non-fatal */ }
+  if (!aside.isConnected) return;
+  const link = aside.querySelector('a[href="#/admin/orders"]');
+  if (!link) return;
+  let badge = link.querySelector('[data-pending-badge]');
+  if (count > 0) {
+    if (!badge) {
+      badge = document.createElement('span');
+      badge.dataset.pendingBadge = '';
+      badge.className = 'ml-auto text-[11px] font-semibold px-1.5 py-0.5 rounded-full';
+      badge.style.background = '#b91c1c';
+      badge.style.color = '#fff';
+      link.appendChild(badge);
+    }
+    badge.textContent = String(count);
+  } else if (badge) {
+    badge.remove();
+  }
 }
 
 function navItem({ href, label, icon, key }, active) {
@@ -155,4 +178,8 @@ function iconSliders() { return `<svg ${ICON_BASE}>
   <line x1="20" y1="21" x2="20" y2="16"/><line x1="20" y1="12" x2="20" y2="3"/>
   <line x1="1" y1="14" x2="7" y2="14"/><line x1="9" y1="8" x2="15" y2="8"/>
   <line x1="17" y1="16" x2="23" y2="16"/>
+</svg>`; }
+function iconBell() { return `<svg ${ICON_BASE}>
+  <path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"/>
+  <path d="M13.73 21a2 2 0 0 1-3.46 0"/>
 </svg>`; }

@@ -4,8 +4,31 @@ import { placeOrder } from '../services/orders.js';
 import { formatPrice } from '../services/products.js';
 import { getBranding } from '../services/branding.js';
 import { showToast } from '../components/toast.js';
+import { confirmDialog } from '../components/dialog.js';
 import { escapeHtml } from '../lib/dom.js';
 import { navigate } from '../services/router.js';
+
+const CUSTOMER_KEY = 'checkout_customer_v1';
+
+function loadSavedCustomer() {
+  try {
+    const raw = localStorage.getItem(CUSTOMER_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    if (!parsed?.name || !parsed?.phone || !parsed?.address) return null;
+    return parsed;
+  } catch { return null; }
+}
+
+function saveCustomer({ name, phone, address }) {
+  try {
+    localStorage.setItem(CUSTOMER_KEY, JSON.stringify({ name, phone, address }));
+  } catch {}
+}
+
+function clearSavedCustomer() {
+  try { localStorage.removeItem(CUSTOMER_KEY); } catch {}
+}
 
 export async function CheckoutPage() {
   const root = document.createElement('section');
@@ -145,6 +168,29 @@ export async function CheckoutPage() {
     if (cleaned !== phoneEl.value) phoneEl.value = cleaned;
   });
 
+  // Offer to autofill from a previous order on this device. We defer the
+  // dialog so the page paints first, otherwise the modal appears before the
+  // form is visible.
+  const saved = loadSavedCustomer();
+  if (saved) {
+    setTimeout(async () => {
+      const ok = await confirmDialog({
+        title: 'Use saved details?',
+        message: `We found delivery info from a previous order on this device — ${saved.name}, ${saved.phone}. Want to fill it in?`,
+        confirmText: 'Yes, use these',
+        cancelText: 'No, I\'ll type',
+      });
+      if (ok) {
+        nameEl.value  = saved.name;
+        phoneEl.value = saved.phone.replace(/\D/g, '');
+        addrEl.value  = saved.address;
+      } else {
+        // User said no — drop the saved data so we don't pester them again.
+        clearSavedCustomer();
+      }
+    }, 60);
+  }
+
   const zonesEl = root.querySelector('[data-zones]');
   const zoneLabelEl = root.querySelector('[data-zone-label]');
   const chargeAmtEl = root.querySelector('[data-charge-amt]');
@@ -221,6 +267,11 @@ export async function CheckoutPage() {
         },
         items.map((it) => ({ productId: it.productId, qty: it.qty }))
       );
+      saveCustomer({
+        name: nameEl.value.trim(),
+        phone: phoneEl.value.trim(),
+        address: addrEl.value.trim(),
+      });
       clearCart();
       navigate(`/order/${result.order_number}?fresh=1`);
     } catch (err) {

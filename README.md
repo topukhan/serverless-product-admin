@@ -79,6 +79,25 @@ After deploy, follow `supabase/SETUP.md` Steps 2–3 (create an auth user + inse
 
 ---
 
+## Telegram notifications (instant phone alerts)
+
+Get a push notification on your phone when a customer places an order, asks a
+question, or leaves a review. Free, no third-party services beyond Telegram.
+
+1. Open Telegram → search **@BotFather** → send `/newbot` and follow prompts.
+   Copy the **bot token** it gives you (looks like `123456789:ABC...`).
+2. Search for your new bot, open the chat, tap **Start**, send any message.
+3. Search **@userinfobot** → send `/start` → copy your **numeric chat ID**.
+4. Sign in to admin → **Notifications** → paste both, flip **Enabled** on,
+   pick which events you want, hit **Save**, then **Send test**. You should
+   get a Telegram push within seconds.
+
+That's it. Triggers fire on every new `orders` / `questions` / `reviews`
+INSERT and call Telegram via Postgres `pg_net` — no edge function deploy,
+no extra service.
+
+---
+
 ## Ongoing maintenance
 
 - **Schema change** → add a migration file → `npx supabase db push`
