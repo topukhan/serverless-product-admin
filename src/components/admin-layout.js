@@ -1,5 +1,10 @@
 import { signOut, getUser } from '../services/auth.js';
 import { getPendingOrderCount } from '../services/admin-orders.js';
+import {
+  getResolvedColorScheme,
+  setColorScheme,
+  onColorSchemeChange,
+} from '../services/branding.js';
 import { showToast } from './toast.js';
 import { confirmDialog } from './dialog.js';
 import { escapeHtml } from '../lib/dom.js';
@@ -54,7 +59,10 @@ export async function AdminLayout(content, { active = '' } = {}) {
 
 
     <div class="hidden lg:block px-5 py-4 border-t" style="border-color: var(--color-border)">
-      <div class="text-xs muted truncate">${escapeHtml(user?.email || 'Signed in')}</div>
+      <div class="flex items-center justify-between gap-2">
+        <div class="text-xs muted truncate flex-1">${escapeHtml(user?.email || 'Signed in')}</div>
+        <button data-theme-toggle class="btn-icon shrink-0" aria-label="Toggle admin theme"></button>
+      </div>
       <button data-signout class="btn btn-ghost w-full mt-2 text-sm">Sign out</button>
     </div>
   `;
@@ -64,6 +72,20 @@ export async function AdminLayout(content, { active = '' } = {}) {
     const nav = aside.querySelector('[data-nav]');
     nav.classList.toggle('hidden');
   });
+
+  // Admin-side theme toggle. Independent of the public site's preference.
+  const themeBtn = aside.querySelector('[data-theme-toggle]');
+  function paintTheme() {
+    const scheme = getResolvedColorScheme();
+    themeBtn.innerHTML = scheme === 'dark' ? sunIcon() : moonIcon();
+    themeBtn.title = scheme === 'dark' ? 'Switch admin to light mode' : 'Switch admin to dark mode';
+  }
+  paintTheme();
+  themeBtn.addEventListener('click', () => {
+    const next = getResolvedColorScheme() === 'dark' ? 'light' : 'dark';
+    setColorScheme(next);
+  });
+  onColorSchemeChange(paintTheme);
 
   // Sign-out (with confirmation)
   aside.querySelector('[data-signout]').addEventListener('click', async () => {
@@ -183,3 +205,17 @@ function iconBell() { return `<svg ${ICON_BASE}>
   <path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"/>
   <path d="M13.73 21a2 2 0 0 1-3.46 0"/>
 </svg>`; }
+
+function sunIcon() {
+  return `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+               stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+    <circle cx="12" cy="12" r="4"/>
+    <path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/>
+  </svg>`;
+}
+function moonIcon() {
+  return `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+               stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
+  </svg>`;
+}

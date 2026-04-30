@@ -20,18 +20,34 @@ import { confirmDialog } from '../../components/dialog.js';
 import { showToast } from '../../components/toast.js';
 import { escapeHtml } from '../../lib/dom.js';
 
-// The 9 palette fields, in display order. Used by the editor.
-const THEME_FIELDS = [
-  { key: 'bg',              label: 'Page background' },
-  { key: 'surface',         label: 'Surface (cards)' },
-  { key: 'border',          label: 'Border / divider' },
-  { key: 'text_color',      label: 'Body text' },
-  { key: 'muted',           label: 'Muted text' },
-  { key: 'primary_color',   label: 'Primary' },
-  { key: 'primary_hover',   label: 'Primary (hover)' },
-  { key: 'secondary_color', label: 'Secondary' },
-  { key: 'accent_color',    label: 'Accent (stars)' },
+// The 9 palette slots a theme owns — used to build the editor UI for both
+// the light side and the dark side. The DB stores these as e.g. light_bg,
+// dark_bg, etc.
+const PALETTE_SLOTS = [
+  { key: 'bg',            label: 'Page background' },
+  { key: 'surface',       label: 'Surface (cards)' },
+  { key: 'border',        label: 'Border / divider' },
+  { key: 'text',          label: 'Body text' },
+  { key: 'muted',         label: 'Muted text' },
+  { key: 'primary',       label: 'Primary' },
+  { key: 'primary_hover', label: 'Primary (hover)' },
+  { key: 'secondary',     label: 'Secondary' },
+  { key: 'accent',        label: 'Accent (stars)' },
 ];
+
+// Sensible bootstrap palettes for a brand-new theme.
+const NEW_LIGHT = {
+  bg: '#f7f3ed', surface: '#ffffff', border: '#e8e1d4',
+  text: '#1f1c18', muted: '#6b6358',
+  primary: '#5a6b4a', primary_hover: '#4a5a3c',
+  secondary: '#a89580', accent: '#c8956d',
+};
+const NEW_DARK = {
+  bg: '#0f1115', surface: '#1a1d23', border: '#2a2e36',
+  text: '#e8e6e1', muted: '#9aa0a8',
+  primary: '#9bb886', primary_hover: '#a8c690',
+  secondary: '#7a8a6e', accent: '#d4a373',
+};
 
 const FONT_PRESETS = [
   { label: 'System sans-serif', value: 'ui-sans-serif, system-ui, -apple-system, "Segoe UI", "Helvetica Neue", Arial, sans-serif' },
@@ -264,13 +280,25 @@ function ThemesSection({ settings, themes, onActiveChanged, onThemesChanged }) {
              class="shrink-0" ${isActive ? 'checked' : ''} />
       <div class="flex-1 min-w-0">
         <div class="font-medium">${escapeHtml(theme.name)}</div>
-        <div class="flex gap-1 mt-2">
-          ${THEME_FIELDS.map((f) => `
-            <span class="inline-block w-5 h-5 rounded"
-                  title="${escapeHtml(f.label)}: ${escapeHtml(theme[f.key] || '')}"
-                  style="background: ${escapeHtml(theme[f.key] || '#ccc')};
-                         border: 1px solid var(--color-border)"></span>
-          `).join('')}
+        <div class="flex flex-wrap gap-3 mt-2 text-[10px] muted">
+          <div class="flex items-center gap-1">
+            <span class="font-medium">Light</span>
+            ${PALETTE_SLOTS.map((f) => `
+              <span class="inline-block w-4 h-4 rounded"
+                    title="${escapeHtml(f.label)}"
+                    style="background: ${escapeHtml(theme[`light_${f.key}`] || '#ccc')};
+                           border: 1px solid var(--color-border)"></span>
+            `).join('')}
+          </div>
+          <div class="flex items-center gap-1">
+            <span class="font-medium">Dark</span>
+            ${PALETTE_SLOTS.map((f) => `
+              <span class="inline-block w-4 h-4 rounded"
+                    title="${escapeHtml(f.label)}"
+                    style="background: ${escapeHtml(theme[`dark_${f.key}`] || '#222')};
+                           border: 1px solid var(--color-border)"></span>
+            `).join('')}
+          </div>
         </div>
       </div>
       <div class="flex gap-2 shrink-0">
@@ -328,7 +356,7 @@ function ThemesSection({ settings, themes, onActiveChanged, onThemesChanged }) {
 
   function themeEditor(state) {
     const isNew = !state.theme;
-    const seed = state.theme || blankThemeFromActive();
+    const seed = state.theme || blankTheme();
 
     const card = document.createElement('div');
     card.className = 'card p-5 sm:p-6';
@@ -347,30 +375,18 @@ function ThemesSection({ settings, themes, onActiveChanged, onThemesChanged }) {
                  value="${escapeHtml(seed.name || '')}" />
         </div>
 
-        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
-          ${THEME_FIELDS.map((f) => `
-            <label class="flex items-center gap-3 p-2 rounded-md"
-                   style="border:1px solid var(--color-border)">
-              <input type="color" data-field="${f.key}"
-                     value="${escapeHtml(seed[f.key] || '#000000')}"
-                     class="w-10 h-10 rounded cursor-pointer shrink-0"
-                     style="border:1px solid var(--color-border); background:transparent" />
-              <div class="flex-1 min-w-0">
-                <div class="text-sm font-medium">${escapeHtml(f.label)}</div>
-                <input type="text" data-hex="${f.key}" maxlength="9"
-                       value="${escapeHtml(seed[f.key] || '#000000')}"
-                       class="input mt-1 text-xs font-mono" />
-              </div>
-            </label>
-          `).join('')}
-        </div>
-
         <p class="text-xs muted">
-          Preview applies as you tweak. Press <strong>Save</strong> to persist.
-          <strong>Cancel</strong> reverts the live preview.
+          Each theme owns both palettes — visitors flip between them with the
+          header sun/moon toggle. Tweaking a side previews live in that mode.
+          Use <strong>Copy ← / →</strong> to bootstrap one side from the other.
         </p>
 
-        <div class="flex justify-end gap-2">
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-5">
+          ${paletteColumn('light', '☀️ Light mode', seed)}
+          ${paletteColumn('dark',  '🌙 Dark mode',  seed)}
+        </div>
+
+        <div class="flex justify-end gap-2 pt-2 border-t" style="border-color:var(--color-border)">
           <button data-cancel2 type="button" class="btn btn-ghost">Cancel</button>
           <button data-save type="submit" class="btn btn-primary">
             ${isNew ? 'Create theme' : 'Save changes'}
@@ -379,27 +395,52 @@ function ThemesSection({ settings, themes, onActiveChanged, onThemesChanged }) {
       </form>
     `;
 
-    // Wire color + hex pairs to live-preview.
-    const draft = { ...seed };
+    // Working copy: { name, light_*: hex, dark_*: hex }
+    const draft = { name: seed.name || '' };
+    for (const slot of PALETTE_SLOTS) {
+      draft[`light_${slot.key}`] = seed[`light_${slot.key}`] || NEW_LIGHT[slot.key];
+      draft[`dark_${slot.key}`]  = seed[`dark_${slot.key}`]  || NEW_DARK[slot.key];
+    }
+
     function applyPreview() {
       previewTheme(draft);
     }
 
-    THEME_FIELDS.forEach((f) => {
-      const colorInput = card.querySelector(`[data-field="${f.key}"]`);
-      const hexInput = card.querySelector(`[data-hex="${f.key}"]`);
-      colorInput.addEventListener('input', () => {
-        draft[f.key] = colorInput.value;
-        hexInput.value = colorInput.value;
-        applyPreview();
-      });
-      hexInput.addEventListener('input', () => {
-        const v = hexInput.value.trim();
-        if (/^#[0-9a-f]{6}$/i.test(v)) {
-          draft[f.key] = v;
-          colorInput.value = v;
+    /* Wire color + hex pairs for both palettes. */
+    ['light', 'dark'].forEach((mode) => {
+      PALETTE_SLOTS.forEach((slot) => {
+        const fullKey = `${mode}_${slot.key}`;
+        const colorInput = card.querySelector(`[data-field="${fullKey}"]`);
+        const hexInput   = card.querySelector(`[data-hex="${fullKey}"]`);
+        colorInput.addEventListener('input', () => {
+          draft[fullKey] = colorInput.value;
+          hexInput.value = colorInput.value;
           applyPreview();
-        }
+        });
+        hexInput.addEventListener('input', () => {
+          const v = hexInput.value.trim();
+          if (/^#[0-9a-f]{6}$/i.test(v)) {
+            draft[fullKey] = v;
+            colorInput.value = v;
+            applyPreview();
+          }
+        });
+      });
+    });
+
+    /* Copy palette from one side to the other. */
+    card.querySelectorAll('[data-copy-from]').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        const fromMode = btn.dataset.copyFrom;
+        const toMode = fromMode === 'light' ? 'dark' : 'light';
+        PALETTE_SLOTS.forEach((slot) => {
+          const v = draft[`${fromMode}_${slot.key}`];
+          draft[`${toMode}_${slot.key}`] = v;
+          card.querySelector(`[data-field="${toMode}_${slot.key}"]`).value = v;
+          card.querySelector(`[data-hex="${toMode}_${slot.key}"]`).value = v;
+        });
+        applyPreview();
+        showToast(`Copied ${fromMode} → ${toMode}`, { variant: 'success' });
       });
     });
 
@@ -418,14 +459,22 @@ function ThemesSection({ settings, themes, onActiveChanged, onThemesChanged }) {
         showToast('Theme name is required.', { variant: 'error' });
         return;
       }
-      // Validate hex inputs before submit.
-      for (const f of THEME_FIELDS) {
-        if (!/^#[0-9a-f]{6}$/i.test(draft[f.key] || '')) {
-          showToast(`"${f.label}" must be a 6-digit hex color.`, { variant: 'error' });
-          return;
+      // Validate every hex.
+      for (const mode of ['light', 'dark']) {
+        for (const slot of PALETTE_SLOTS) {
+          const v = draft[`${mode}_${slot.key}`] || '';
+          if (!/^#[0-9a-f]{6}$/i.test(v)) {
+            showToast(`${mode} "${slot.label}" must be a 6-digit hex color.`, { variant: 'error' });
+            return;
+          }
         }
       }
-      const payload = { name, ...Object.fromEntries(THEME_FIELDS.map((f) => [f.key, draft[f.key]])) };
+      const payload = { name };
+      for (const mode of ['light', 'dark']) {
+        for (const slot of PALETTE_SLOTS) {
+          payload[`${mode}_${slot.key}`] = draft[`${mode}_${slot.key}`];
+        }
+      }
 
       const saveBtn = card.querySelector('[data-save]');
       saveBtn.disabled = true;
@@ -457,20 +506,50 @@ function ThemesSection({ settings, themes, onActiveChanged, onThemesChanged }) {
     return card;
   }
 
-  function blankThemeFromActive() {
+  function blankTheme() {
     const active = themes.find((t) => t.id === activeId) || themes[0] || {};
-    return {
-      name: '',
-      bg: active.bg || '#f7f3ed',
-      surface: active.surface || '#ffffff',
-      border: active.border || '#e8e1d4',
-      text_color: active.text_color || '#1f1c18',
-      muted: active.muted || '#6b6358',
-      primary_color: active.primary_color || '#5a6b4a',
-      primary_hover: active.primary_hover || '#4a5a3c',
-      secondary_color: active.secondary_color || '#a89580',
-      accent_color: active.accent_color || '#c8956d',
-    };
+    const out = { name: '' };
+    for (const slot of PALETTE_SLOTS) {
+      out[`light_${slot.key}`] = active[`light_${slot.key}`] || NEW_LIGHT[slot.key];
+      out[`dark_${slot.key}`]  = active[`dark_${slot.key}`]  || NEW_DARK[slot.key];
+    }
+    return out;
+  }
+
+  function paletteColumn(mode, label, seed) {
+    const otherMode = mode === 'light' ? 'dark' : 'light';
+    return `
+      <div class="rounded-lg p-4" style="border:1px solid var(--color-border)">
+        <div class="flex items-center justify-between mb-3">
+          <span class="text-sm font-semibold">${label}</span>
+          <button type="button" data-copy-from="${otherMode}"
+                  class="text-[11px] hover:underline" style="color:var(--color-primary)">
+            Copy from ${otherMode}
+          </button>
+        </div>
+        <div class="space-y-2">
+          ${PALETTE_SLOTS.map((slot) => {
+            const fullKey = `${mode}_${slot.key}`;
+            const value = seed[fullKey] || (mode === 'dark' ? NEW_DARK[slot.key] : NEW_LIGHT[slot.key]);
+            return `
+              <label class="flex items-center gap-3 p-2 rounded-md"
+                     style="border:1px solid var(--color-border)">
+                <input type="color" data-field="${fullKey}"
+                       value="${escapeHtml(value)}"
+                       class="w-9 h-9 rounded cursor-pointer shrink-0"
+                       style="border:1px solid var(--color-border); background:transparent" />
+                <div class="flex-1 min-w-0">
+                  <div class="text-xs font-medium">${escapeHtml(slot.label)}</div>
+                  <input type="text" data-hex="${fullKey}" maxlength="9"
+                         value="${escapeHtml(value)}"
+                         class="input mt-1 text-xs font-mono" />
+                </div>
+              </label>
+            `;
+          }).join('')}
+        </div>
+      </div>
+    `;
   }
 
   createBtn.addEventListener('click', () => {

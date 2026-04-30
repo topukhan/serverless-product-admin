@@ -35,7 +35,7 @@ export function ProductCard(p, { stats } = {}) {
     hasGallery
       ? `<span class="absolute bottom-3 right-3 text-[10px] font-medium px-1.5 py-0.5 rounded
               backdrop-blur-sm"
-              style="background: rgb(255 255 255 / 0.85); color: var(--color-text)">
+              style="background: rgb(15 17 13 / 0.65); color: #fff">
            +${p.gallery_urls.length}
          </span>`
       : '';
