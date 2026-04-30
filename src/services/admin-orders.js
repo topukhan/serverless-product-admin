@@ -13,7 +13,7 @@ export async function listOrders({
   let query = supabase
     .from('orders')
     .select(
-      'id, order_number, status, customer_name, customer_phone, total_amount, tracking_id, placed_at',
+      'id, order_number, status, customer_name, customer_phone, total_amount, tracking_id, placed_at, viewed_at',
       { count: 'exact' }
     )
     .order('placed_at', { ascending: false })
@@ -90,4 +90,16 @@ export async function getPendingOrderCount() {
   const { data, error } = await supabase.rpc('get_pending_order_count');
   if (error) throw error;
   return data ?? 0;
+}
+
+// Mark an order as viewed by the admin. Idempotent (only sets the timestamp
+// if it's still null). Failures are non-fatal — the badge will catch up on
+// the next navigation.
+export async function markOrderViewed(orderId) {
+  await supabase
+    .from('orders')
+    .update({ viewed_at: new Date().toISOString() })
+    .eq('id', orderId)
+    .is('viewed_at', null)
+    .then(() => null, () => null);
 }

@@ -58,15 +58,6 @@ function InvoiceCard(order) {
   wrap.innerHTML = `
     <div class="flex items-center justify-between mb-5 print-hide">
       <a href="#/track-order" class="text-sm muted hover:underline">← Track another order</a>
-      <button data-print class="btn btn-primary">
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-             stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <polyline points="6 9 6 2 18 2 18 9"/>
-          <path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/>
-          <rect x="6" y="14" width="12" height="8"/>
-        </svg>
-        Download invoice
-      </button>
     </div>
 
     <article id="invoice" class="card p-6 sm:p-10">
@@ -184,7 +175,6 @@ function InvoiceCard(order) {
     </article>
   `;
 
-  wrap.querySelector('[data-print]').addEventListener('click', () => window.print());
   return wrap;
 }
 
@@ -215,9 +205,8 @@ function showThankYouPopup(order, onClose) {
       placed successfully. Save the order ID — you can track or download the
       invoice anytime.
     </p>
-    <div class="mt-6 grid grid-cols-2 gap-2.5">
-      <button data-view class="btn btn-ghost">View invoice</button>
-      <button data-download class="btn btn-primary">Download</button>
+    <div class="mt-6">
+      <button data-view class="btn btn-primary w-full">View invoice</button>
     </div>
   `;
   backdrop.appendChild(modal);
@@ -243,11 +232,6 @@ function showThankYouPopup(order, onClose) {
 
   backdrop.addEventListener('click', (e) => { if (e.target === backdrop) close(); });
   modal.querySelector('[data-view]').addEventListener('click', close);
-  modal.querySelector('[data-download]').addEventListener('click', () => {
-    close();
-    // Defer until popup is gone so the browser print dialog doesn't capture it.
-    setTimeout(() => window.print(), 220);
-  });
 }
 
 function zoneLabel(zone) {

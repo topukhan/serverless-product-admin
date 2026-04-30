@@ -3,6 +3,7 @@ import {
   updateOrderStatus,
   updateOrderCharges,
   updateOrderTrackingId,
+  markOrderViewed,
 } from '../../services/admin-orders.js';
 import { STATUS_META, ZONE_LABELS } from '../../services/orders.js';
 import { getBranding } from '../../services/branding.js';
@@ -33,6 +34,15 @@ export async function AdminOrderDetailPage(params) {
   } catch (err) {
     root.innerHTML = errorBox(err.message);
     return root;
+  }
+
+  // First-time view marks the order as seen so it stops counting toward the
+  // sidebar badge. Deferred so the AdminLayout has registered itself first.
+  if (order.status === 'pending' && !order.viewed_at) {
+    setTimeout(async () => {
+      await markOrderViewed(order.id);
+      notifyPendingChanged();
+    }, 0);
   }
 
   function rerender() {

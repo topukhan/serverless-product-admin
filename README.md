@@ -79,22 +79,40 @@ After deploy, follow `supabase/SETUP.md` Steps 2–3 (create an auth user + inse
 
 ---
 
-## Telegram notifications (instant phone alerts)
+## Notifications (Telegram + Email)
 
-Get a push notification on your phone when a customer places an order, asks a
-question, or leaves a review. Free, no third-party services beyond Telegram.
+Get a phone push (Telegram) or an email when a customer places an order, asks
+a question, or leaves a review. Configure either or both in
+**Admin → Notifications**. The page has two in-page tabs.
 
-1. Open Telegram → search **@BotFather** → send `/newbot` and follow prompts.
-   Copy the **bot token** it gives you (looks like `123456789:ABC...`).
-2. Search for your new bot, open the chat, tap **Start**, send any message.
-3. Search **@userinfobot** → send `/start` → copy your **numeric chat ID**.
-4. Sign in to admin → **Notifications** → paste both, flip **Enabled** on,
-   pick which events you want, hit **Save**, then **Send test**. You should
-   get a Telegram push within seconds.
+### Telegram
 
-That's it. Triggers fire on every new `orders` / `questions` / `reviews`
-INSERT and call Telegram via Postgres `pg_net` — no edge function deploy,
-no extra service.
+1. Open Telegram → search **@BotFather** → send `/newbot` → follow prompts →
+   copy the **bot token** (looks like `123456789:ABC...`).
+2. Open your new bot's chat → tap **Start** → send any message.
+3. Search **@userinfobot** → `/start` → copy your numeric **chat ID**.
+4. Notifications page → **Telegram** tab → paste both → flip the master
+   **Notifications enabled** on → **Save** → **Send test**.
+
+### Email (via Resend)
+
+Free 100 emails/day on Resend's free tier. Phone Gmail app gets a push.
+
+1. Sign up at [resend.com](https://resend.com) (free).
+2. Create an API key in the Resend dashboard.
+3. Notifications page → **Email** tab → paste the API key + your email
+   address as **To** → flip **Email enabled** on → **Save** → **Send test**.
+4. For testing, leave **From** as `onboarding@resend.dev` — works without
+   domain verification but only delivers to the email you signed up with.
+   For production, verify your own domain in Resend and use any address on it.
+
+### How it works under the hood
+
+Postgres triggers fire on every new `orders` / `questions` / `reviews`
+INSERT and dispatch via `notify_admins(subject, body)`. That helper fans
+out to Telegram and Resend through Supabase's built-in `pg_net` extension —
+no edge function deploy, no extra services. A misconfigured channel never
+blocks the originating insert; failures are swallowed to a NOTICE log.
 
 ---
 

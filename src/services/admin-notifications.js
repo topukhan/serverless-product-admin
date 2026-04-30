@@ -22,3 +22,13 @@ export async function sendTestNotification() {
   const { error } = await supabase.rpc('send_test_notification');
   if (error) throw error;
 }
+
+export async function sendTestTelegram() {
+  const { error } = await supabase.rpc('send_test_telegram');
+  if (error) throw error;
+}
+
+export async function sendTestEmail() {
+  const { error } = await supabase.rpc('send_test_email');
+  if (error) throw error;
+}

@@ -48,45 +48,123 @@ const THEME_TOKEN_MAP = {
 };
 
 let cachedBrand = null;
-let cachedTheme = null;
+let cachedLightTheme = null;
+let cachedDarkTheme  = null;
 let cachedFlags = null;
 
-export async function loadBranding() {
-  if (cachedBrand && cachedTheme) return { brand: cachedBrand, theme: cachedTheme, flags: cachedFlags };
+const COLOR_SCHEME_KEY = 'color_scheme_v1';
+const SCHEME_CHANGE_EVENT = 'color-scheme:change';
 
-  // Fetch the settings row + its active theme in one round-trip.
+export async function loadBranding() {
+  if (cachedBrand && cachedLightTheme) {
+    return {
+      brand: cachedBrand,
+      theme: getActiveTheme(),
+      flags: cachedFlags,
+    };
+  }
+
+  // Fetch settings + both themes in one round-trip.
   const { data, error } = await supabase
     .from('settings')
-    .select('*, theme:themes!active_theme_id(*)')
+    .select('*, theme:themes!active_theme_id(*), dark_theme:themes!dark_theme_id(*)')
     .eq('id', 1)
     .single();
 
   if (error) {
     console.warn('[branding] using fallback:', error.message);
     cachedBrand = FALLBACK_BRAND;
-    cachedTheme = FALLBACK_THEME;
+    cachedLightTheme = FALLBACK_THEME;
+    cachedDarkTheme = null;
     cachedFlags = { ...DEFAULT_FLAGS };
   } else {
     cachedBrand = { ...FALLBACK_BRAND, ...data };
-    cachedTheme = data.theme ? { ...FALLBACK_THEME, ...data.theme } : FALLBACK_THEME;
+    cachedLightTheme = data.theme      ? { ...FALLBACK_THEME, ...data.theme }      : FALLBACK_THEME;
+    cachedDarkTheme  = data.dark_theme ? { ...FALLBACK_THEME, ...data.dark_theme } : null;
     cachedFlags = { ...DEFAULT_FLAGS, ...(data.flags || {}) };
   }
 
-  applyBranding(cachedBrand, cachedTheme);
-  return { brand: cachedBrand, theme: cachedTheme, flags: cachedFlags };
+  // Listen once for OS-level color-scheme changes — only applies when the
+  // user hasn't pinned a preference (i.e. mode === 'auto').
+  installSchemeMediaListener();
+
+  applyBranding(cachedBrand, getActiveTheme());
+  return { brand: cachedBrand, theme: getActiveTheme(), flags: cachedFlags };
 }
 
 export function getBranding() {
   return cachedBrand ?? FALLBACK_BRAND;
 }
 export function getTheme() {
-  return cachedTheme ?? FALLBACK_THEME;
+  return getActiveTheme();
 }
 export function getFlags() {
   return cachedFlags ?? { ...DEFAULT_FLAGS };
 }
 export function getFlag(name) {
   return getFlags()[name];
+}
+
+/* =====================================================================
+ * Color scheme
+ *   stored value:        'light' | 'dark' | 'auto'  (default: 'auto')
+ *   resolved scheme:     'light' | 'dark'           (auto -> media query)
+ * ===================================================================== */
+export function getColorSchemePreference() {
+  try {
+    const v = localStorage.getItem(COLOR_SCHEME_KEY);
+    return v === 'light' || v === 'dark' ? v : 'auto';
+  } catch { return 'auto'; }
+}
+
+export function getResolvedColorScheme() {
+  const pref = getColorSchemePreference();
+  if (pref === 'light' || pref === 'dark') return pref;
+  return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+}
+
+export function setColorScheme(next) {
+  try {
+    if (next === 'auto') localStorage.removeItem(COLOR_SCHEME_KEY);
+    else localStorage.setItem(COLOR_SCHEME_KEY, next);
+  } catch {}
+  applyBranding(cachedBrand, getActiveTheme());
+  window.dispatchEvent(new CustomEvent(SCHEME_CHANGE_EVENT, {
+    detail: { resolved: getResolvedColorScheme(), pref: getColorSchemePreference() },
+  }));
+}
+
+export function onColorSchemeChange(handler) {
+  const listener = (e) => handler(e.detail);
+  window.addEventListener(SCHEME_CHANGE_EVENT, listener);
+  return () => window.removeEventListener(SCHEME_CHANGE_EVENT, listener);
+}
+
+export function hasDarkTheme() {
+  return !!cachedDarkTheme;
+}
+
+function getActiveTheme() {
+  const scheme = getResolvedColorScheme();
+  if (scheme === 'dark' && cachedDarkTheme) return cachedDarkTheme;
+  return cachedLightTheme || FALLBACK_THEME;
+}
+
+let schemeListenerInstalled = false;
+function installSchemeMediaListener() {
+  if (schemeListenerInstalled) return;
+  schemeListenerInstalled = true;
+  try {
+    const mq = window.matchMedia('(prefers-color-scheme: dark)');
+    mq.addEventListener('change', () => {
+      if (getColorSchemePreference() === 'auto') {
+        applyBranding(cachedBrand, getActiveTheme());
+        window.dispatchEvent(new CustomEvent(SCHEME_CHANGE_EVENT, {
+          detail: { resolved: getResolvedColorScheme(), pref: 'auto' },
+        }));
+      }
+    });
+  } catch {}
 }
 
 // Used by the admin Site Settings page so that the next render reflects an
@@ -100,7 +178,8 @@ export function _setCachedFlags(flags) {
 // visible immediately, without a full page reload.
 export async function refreshBranding() {
   cachedBrand = null;
-  cachedTheme = null;
+  cachedLightTheme = null;
+  cachedDarkTheme = null;
   cachedFlags = null;
   return loadBranding();
 }
@@ -113,11 +192,14 @@ export function previewTheme(theme) {
 
 // Restore the saved active theme after a preview.
 export function restoreTheme() {
-  applyBranding(getBranding(), getTheme());
+  applyBranding(getBranding(), getActiveTheme());
 }
 
 function applyBranding(brand, theme) {
   const root = document.documentElement.style;
+  // Annotate the html element so any CSS that wants to differentiate
+  // light vs. dark can hook off [data-color-scheme="dark"].
+  document.documentElement.setAttribute('data-color-scheme', getResolvedColorScheme());
 
   // Theme palette → CSS vars.
   for (const [col, cssVar] of Object.entries(THEME_TOKEN_MAP)) {

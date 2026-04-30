@@ -1,12 +1,15 @@
 import { findOrder } from '../services/orders.js';
 import { navigate } from '../services/router.js';
 import { showToast } from '../components/toast.js';
+import { getRecentOrders, pushRecentOrder } from '../lib/recent-orders.js';
+import { escapeHtml } from '../lib/dom.js';
 
 export async function TrackOrderPage(params) {
   const root = document.createElement('section');
   root.className = 'container-x py-12';
 
   const initial = params?.query?.q || '';
+  const recent = getRecentOrders();
 
   root.innerHTML = `
     <div class="max-w-md mx-auto text-center">
@@ -32,9 +35,23 @@ export async function TrackOrderPage(params) {
 
       <p data-err class="mt-3 text-sm hidden" style="color:#b91c1c"></p>
 
+      ${recent.length > 0 ? `
+        <div class="mt-8 text-left">
+          <div class="text-xs uppercase tracking-wider muted mb-2">Your recent orders</div>
+          <div class="flex flex-wrap gap-2" data-recent>
+            ${recent.map((o) => `
+              <a href="#/order/${escapeHtml(o)}"
+                 class="font-mono text-xs px-3 py-1.5 rounded-full transition hover:shadow-sm"
+                 style="border:1px solid var(--color-border); background:var(--color-surface)">
+                ${escapeHtml(o)}
+              </a>
+            `).join('')}
+          </div>
+        </div>
+      ` : ''}
+
       <p class="text-xs muted mt-8">
-        Your order ID is shown on the thank-you page right after checkout.
-        Keep it safe — anyone with the ID can see the order.
+        Anyone with the order ID can see the order. Keep it safe.
       </p>
     </div>
   `;
@@ -52,6 +69,7 @@ export async function TrackOrderPage(params) {
     try {
       const num = await findOrder(q);
       if (num) {
+        pushRecentOrder(num);
         navigate(`/order/${num}`);
       } else {
         errEl.textContent = 'No order matched that ID.';

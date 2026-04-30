@@ -117,6 +117,17 @@ export async function deleteTheme(id) {
   if (error) throw error;
 }
 
+export async function setDarkTheme(themeId) {
+  const { data, error } = await supabase
+    .from('settings')
+    .update({ dark_theme_id: themeId || null })
+    .eq('id', 1)
+    .select()
+    .single();
+  if (error) throw error;
+  return data;
+}
+
 export async function setActiveTheme(themeId) {
   const { data, error } = await supabase
     .from('settings')

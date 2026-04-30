@@ -178,15 +178,21 @@ export async function AdminOrdersListPage(params) {
 }
 
 function orderRow(o) {
+  const isNew = o.status === 'pending' && !o.viewed_at;
   const row = document.createElement('a');
   row.href = `#/admin/orders/${o.id}`;
   row.className = 'card p-4 flex items-center gap-4 hover:shadow-sm transition';
+  if (isNew) row.style.borderColor = '#b91c1c';
   const placed = new Date(o.placed_at).toLocaleString();
   row.innerHTML = `
     <div class="flex-1 min-w-0">
       <div class="flex items-center gap-2 flex-wrap">
         <span class="font-mono font-medium">${escapeHtml(o.order_number)}</span>
         ${statusBadge(o.status)}
+        ${isNew
+          ? `<span class="text-[10px] font-semibold px-1.5 py-0.5 rounded-full"
+                  style="background:#b91c1c;color:#fff">NEW</span>`
+          : ''}
         ${o.tracking_id
           ? `<span class="text-[11px] muted">→ <span class="font-mono">${escapeHtml(o.tracking_id)}</span></span>`
           : ''}

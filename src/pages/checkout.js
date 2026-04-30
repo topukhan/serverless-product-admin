@@ -6,6 +6,7 @@ import { getBranding } from '../services/branding.js';
 import { showToast } from '../components/toast.js';
 import { confirmDialog } from '../components/dialog.js';
 import { escapeHtml } from '../lib/dom.js';
+import { pushRecentOrder } from '../lib/recent-orders.js';
 import { navigate } from '../services/router.js';
 
 const CUSTOMER_KEY = 'checkout_customer_v1';
@@ -272,6 +273,7 @@ export async function CheckoutPage() {
         phone: phoneEl.value.trim(),
         address: addrEl.value.trim(),
       });
+      pushRecentOrder(result.order_number);
       clearCart();
       navigate(`/order/${result.order_number}?fresh=1`);
     } catch (err) {
