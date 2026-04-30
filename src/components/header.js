@@ -21,8 +21,9 @@ export function Header() {
       </a>
       <div class="flex items-center gap-1">
         <nav class="flex items-center gap-1 text-sm mr-1">
-          ${navLink('#/',         'Home')}
-          ${navLink('#/products', 'Products')}
+          ${navLink('#/',             'Home')}
+          ${navLink('#/products',     'Products')}
+          ${navLink('#/track-order',  'Track')}
         </nav>
         <span data-cart-slot></span>
       </div>

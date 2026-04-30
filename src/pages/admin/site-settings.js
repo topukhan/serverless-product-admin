@@ -1,5 +1,5 @@
 import { supabase } from '../../services/supabase.js';
-import { getFlags, _setCachedFlags } from '../../services/branding.js';
+import { getFlags, getBranding, refreshBranding, _setCachedFlags } from '../../services/branding.js';
 import { showToast } from '../../components/toast.js';
 import { escapeHtml } from '../../lib/dom.js';
 
@@ -30,6 +30,7 @@ export async function AdminSiteSettings() {
   root.className = 'p-6 sm:p-8 max-w-2xl';
 
   const flags = getFlags();
+  const brand = getBranding();
 
   root.innerHTML = `
     <header class="mb-6">
@@ -38,13 +39,115 @@ export async function AdminSiteSettings() {
         Feature flags that change how the public site behaves. Saved instantly.
       </p>
     </header>
+
     <div data-list class="space-y-3"></div>
+
+    <div class="mt-8 card p-5 sm:p-6">
+      <h2 class="font-semibold text-lg">Order policy</h2>
+      <p class="muted text-sm mt-1">
+        Rate limit + delivery charges applied at checkout.
+      </p>
+      <form data-orders-form class="mt-5 grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <div>
+          <label class="label" for="rl-count">Max orders per phone</label>
+          <input id="rl-count" data-rate-count type="number" min="1" max="100"
+                 class="input"
+                 value="${escapeHtml(String(brand.order_rate_limit_count ?? 5))}" />
+        </div>
+        <div>
+          <label class="label" for="rl-mins">Within (minutes)</label>
+          <input id="rl-mins" data-rate-mins type="number" min="1" max="1440"
+                 class="input"
+                 value="${escapeHtml(String(brand.order_rate_limit_minutes ?? 15))}" />
+        </div>
+        <div class="sm:col-span-2 pt-2 border-t" style="border-color:var(--color-border)">
+          <div class="text-sm font-medium mb-1">Inside-Dhaka zone</div>
+          <p class="text-xs muted">Label + charge shown at checkout.</p>
+        </div>
+        <div>
+          <label class="label" for="lbl-in">Label</label>
+          <input id="lbl-in" data-label-inside type="text" maxlength="60"
+                 class="input"
+                 value="${escapeHtml(brand.delivery_label_inside_dhaka || 'Inside Dhaka')}" />
+        </div>
+        <div>
+          <label class="label" for="dc-in">Charge (৳)</label>
+          <input id="dc-in" data-inside type="number" min="0" step="0.01"
+                 class="input"
+                 value="${escapeHtml(String(brand.delivery_charge_inside_dhaka ?? 60))}" />
+        </div>
+
+        <div class="sm:col-span-2 pt-2 border-t" style="border-color:var(--color-border)">
+          <div class="text-sm font-medium mb-1">Outside-Dhaka zone</div>
+          <p class="text-xs muted">Label + charge shown at checkout.</p>
+        </div>
+        <div>
+          <label class="label" for="lbl-out">Label</label>
+          <input id="lbl-out" data-label-outside type="text" maxlength="60"
+                 class="input"
+                 value="${escapeHtml(brand.delivery_label_outside_dhaka || 'Outside Dhaka')}" />
+        </div>
+        <div>
+          <label class="label" for="dc-out">Charge (৳)</label>
+          <input id="dc-out" data-outside type="number" min="0" step="0.01"
+                 class="input"
+                 value="${escapeHtml(String(brand.delivery_charge_outside_dhaka ?? 130))}" />
+        </div>
+
+        <p class="sm:col-span-2 text-xs muted">
+          Customers pick a zone at checkout. Admins can still tweak charge
+          per-order before shipping.
+        </p>
+        <div class="sm:col-span-2 flex justify-end">
+          <button type="submit" class="btn btn-primary">Save order policy</button>
+        </div>
+      </form>
+    </div>
   `;
   const list = root.querySelector('[data-list]');
 
   for (const flag of FLAG_SCHEMA) {
     list.appendChild(toggleRow(flag, !!flags[flag.key]));
   }
+
+  /* Order policy form. */
+  const ordersForm = root.querySelector('[data-orders-form]');
+  ordersForm.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const count       = Number(ordersForm.querySelector('[data-rate-count]').value);
+    const mins        = Number(ordersForm.querySelector('[data-rate-mins]').value);
+    const inside      = Number(ordersForm.querySelector('[data-inside]').value);
+    const outside     = Number(ordersForm.querySelector('[data-outside]').value);
+    const insideLabel = ordersForm.querySelector('[data-label-inside]').value.trim();
+    const outsideLabel= ordersForm.querySelector('[data-label-outside]').value.trim();
+    if (count < 1 || mins < 1 || inside < 0 || outside < 0
+        || !insideLabel || !outsideLabel) {
+      showToast('Please fill in all fields with valid values.', { variant: 'error' });
+      return;
+    }
+    const btn = ordersForm.querySelector('button[type="submit"]');
+    btn.disabled = true; btn.textContent = 'Saving…';
+    try {
+      const { error } = await supabase
+        .from('settings')
+        .update({
+          order_rate_limit_count: count,
+          order_rate_limit_minutes: mins,
+          delivery_charge_inside_dhaka:  inside,
+          delivery_charge_outside_dhaka: outside,
+          delivery_label_inside_dhaka:   insideLabel,
+          delivery_label_outside_dhaka:  outsideLabel,
+        })
+        .eq('id', 1);
+      if (error) throw error;
+      await refreshBranding();
+      showToast('Order policy saved', { variant: 'success' });
+    } catch (err) {
+      showToast(err.message || 'Save failed', { variant: 'error' });
+    } finally {
+      btn.disabled = false; btn.textContent = 'Save order policy';
+    }
+  });
 
   return root;
 }

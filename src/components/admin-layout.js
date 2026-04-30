@@ -1,10 +1,12 @@
 import { signOut, getUser } from '../services/auth.js';
+import { getPendingOrderCount } from '../services/admin-orders.js';
 import { showToast } from './toast.js';
 import { confirmDialog } from './dialog.js';
 import { escapeHtml } from '../lib/dom.js';
 
 const NAV = [
   { key: 'dashboard',     href: '#/admin',               label: 'Dashboard',      icon: iconDashboard },
+  { key: 'orders',        href: '#/admin/orders',        label: 'Orders',         icon: iconCart, badge: 'pending' },
   { key: 'products',      href: '#/admin/products',      label: 'Products',       icon: iconBox },
   { key: 'categories',    href: '#/admin/categories',    label: 'Categories',     icon: iconTag },
   { key: 'reviews',       href: '#/admin/reviews',       label: 'Reviews',        icon: iconStar },
@@ -47,6 +49,7 @@ export async function AdminLayout(content, { active = '' } = {}) {
       ${NAV.map((it) => navItem(it, active)).join('')}
     </nav>
 
+
     <div class="hidden lg:block px-5 py-4 border-t" style="border-color: var(--color-border)">
       <div class="text-xs muted truncate">${escapeHtml(user?.email || 'Signed in')}</div>
       <button data-signout class="btn btn-ghost w-full mt-2 text-sm">Sign out</button>
@@ -79,6 +82,22 @@ export async function AdminLayout(content, { active = '' } = {}) {
   main.appendChild(content);
 
   root.append(aside, main);
+
+  // Fetch pending count and paint the Orders badge. Non-blocking.
+  getPendingOrderCount()
+    .then((count) => {
+      if (!count) return;
+      const link = aside.querySelector('a[href="#/admin/orders"]');
+      if (!link) return;
+      const span = document.createElement('span');
+      span.className = 'ml-auto text-[11px] font-semibold px-1.5 py-0.5 rounded-full';
+      span.style.background = '#b91c1c';
+      span.style.color = '#fff';
+      span.textContent = String(count);
+      link.appendChild(span);
+    })
+    .catch(() => {}); // non-fatal
+
   return root;
 }
 
@@ -106,6 +125,10 @@ const ICON_BASE = `width="18" height="18" viewBox="0 0 24 24" fill="none"
 function iconDashboard() { return `<svg ${ICON_BASE}>
   <rect x="3"  y="3"  width="7" height="9"/><rect x="14" y="3"  width="7" height="5"/>
   <rect x="14" y="12" width="7" height="9"/><rect x="3"  y="16" width="7" height="5"/>
+</svg>`; }
+function iconCart() { return `<svg ${ICON_BASE}>
+  <circle cx="9" cy="20" r="1.5"/><circle cx="18" cy="20" r="1.5"/>
+  <path d="M3 4h2l2.4 12.4a2 2 0 0 0 2 1.6h7.6a2 2 0 0 0 2-1.6L21 8H6"/>
 </svg>`; }
 function iconBox() { return `<svg ${ICON_BASE}>
   <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/>

@@ -36,13 +36,20 @@ export function navigate(path) {
 }
 
 async function renderCurrent() {
-  const path = location.hash.replace(/^#/, '') || '/';
+  const raw = location.hash.replace(/^#/, '') || '/';
+  // Split off any querystring (e.g. /admin/orders?status=approved).
+  const qIdx = raw.indexOf('?');
+  const path = qIdx === -1 ? raw : raw.slice(0, qIdx);
+  const queryString = qIdx === -1 ? '' : raw.slice(qIdx + 1);
+  const query = Object.fromEntries(new URLSearchParams(queryString));
+
   for (const route of routes) {
     const m = route.regex.exec(path);
     if (m) {
       const params = Object.fromEntries(
         route.keys.map((k, i) => [k, decodeURIComponent(m[i + 1])])
       );
+      params.query = query;
       const node = await route.render(params);
       outlet.replaceChildren(node);
       window.scrollTo(0, 0);

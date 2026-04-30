@@ -5,6 +5,13 @@ const FALLBACK_BRAND = {
   logo_url: null,
   favicon_url: null,
   font_family: 'ui-sans-serif, system-ui, sans-serif',
+  // Order settings — overridden by DB row when settings load.
+  order_rate_limit_count: 5,
+  order_rate_limit_minutes: 15,
+  delivery_charge_inside_dhaka: 60,
+  delivery_charge_outside_dhaka: 130,
+  delivery_label_inside_dhaka:  'Inside Dhaka',
+  delivery_label_outside_dhaka: 'Outside Dhaka',
 };
 
 // Defaults for site-level feature flags. Add a key here AND in the schema

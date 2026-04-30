@@ -110,11 +110,11 @@ export async function CartPage() {
           ${formatPrice(total)}
         </span>
       </div>
-      <button class="btn btn-primary w-full mt-5" disabled>
-        Checkout (coming soon)
-      </button>
+      <a href="#/checkout" class="btn btn-primary w-full mt-5">
+        Checkout
+      </a>
       <p class="mt-2 text-xs muted text-center">
-        Cart persists on this device. No account needed.
+        Cash on delivery. No account needed.
       </p>
     `;
   }

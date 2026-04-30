@@ -122,3 +122,22 @@ body {
   .muted { color: var(--color-muted); }
   .divider { border-color: var(--color-border); }
 }
+
+/* ---------- Print (invoice) ----------
+   When the user prints the order page (Download invoice), strip all chrome
+   and show only the #invoice card. Buttons, header, footer, and anything
+   tagged .print-hide are removed from the print output. */
+.print-only-block { display: none; }
+
+@media print {
+  body * { visibility: hidden; }
+  #invoice, #invoice * { visibility: visible; }
+  #invoice {
+    position: absolute; left: 0; top: 0; width: 100%;
+    border: none; padding: 0; box-shadow: none;
+  }
+  .print-hide { display: none !important; }
+  .print-only-block { display: block !important; }
+  /* Tame heavy backgrounds so the page renders cleanly. */
+  body { background: #fff; }
+}
