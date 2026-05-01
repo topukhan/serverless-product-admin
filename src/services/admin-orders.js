@@ -1,9 +1,10 @@
 import { supabase } from './supabase.js';
 
 // List orders with filters. Returns { rows, total }.
-//   filters: { status, q (search), from, to, limit, offset }
+//   filters: { status, source, q (search), from, to, limit, offset }
 export async function listOrders({
   status = null,
+  source = null,
   q = null,
   from = null,
   to = null,
@@ -13,13 +14,14 @@ export async function listOrders({
   let query = supabase
     .from('orders')
     .select(
-      'id, order_number, status, customer_name, customer_phone, total_amount, tracking_id, placed_at, viewed_at',
+      'id, order_number, status, source, customer_name, customer_phone, total_amount, tracking_id, placed_at, viewed_at',
       { count: 'exact' }
     )
     .order('placed_at', { ascending: false })
     .range(offset, offset + limit - 1);
 
   if (status) query = query.eq('status', status);
+  if (source) query = query.eq('source', source);
   if (from) query = query.gte('placed_at', from);
   if (to)   query = query.lte('placed_at', to);
   if (q && q.trim()) {
@@ -44,7 +46,21 @@ export async function getAdminOrder(id) {
     supabase.from('order_events').select('*').eq('order_id', id).order('created_at'),
   ]);
 
-  return { ...order, items: items || [], events: events || [] };
+  // Hydrate product images so detail / edit views can show thumbnails. Items
+  // store a snapshot of name+price but not image; if the product was deleted
+  // we just skip the lookup.
+  const ids = (items || []).map((it) => it.product_id).filter(Boolean);
+  let imgMap = new Map();
+  if (ids.length > 0) {
+    const { data: imgs } = await supabase
+      .from('products').select('id, image_url').in('id', ids);
+    imgMap = new Map((imgs || []).map((p) => [p.id, p.image_url]));
+  }
+  const itemsWithImg = (items || []).map((it) => ({
+    ...it, image_url: imgMap.get(it.product_id) || null,
+  }));
+
+  return { ...order, items: itemsWithImg, events: events || [] };
 }
 
 export async function updateOrderStatus({ orderId, newStatus, trackingId = null, note = null }) {
@@ -90,6 +106,44 @@ export async function getPendingOrderCount() {
   const { data, error } = await supabase.rpc('get_pending_order_count');
   if (error) throw error;
   return data ?? 0;
+}
+
+export async function createAdminOrder(payload) {
+  const { data, error } = await supabase.rpc('create_admin_order', { payload });
+  if (error) throw error;
+  return data;
+}
+
+export async function updateOrderPending({ orderId, payload }) {
+  const { data, error } = await supabase.rpc('update_order_pending', {
+    p_order_id: orderId,
+    payload,
+  });
+  if (error) throw error;
+  return data;
+}
+
+// Search products for the admin order picker. When `term` is empty, returns
+// the first `limit` products (default order); otherwise filters by name.
+export async function searchProductsForOrder(term, limit = 10) {
+  let q = supabase
+    .from('products')
+    .select('id, name, price, stock, image_url')
+    .order('name')
+    .limit(limit);
+  if (term && term.trim()) q = q.ilike('name', `%${term.trim()}%`);
+  const { data, error } = await q;
+  if (error) throw error;
+  return data || [];
+}
+
+export async function updateAdminNote({ orderId, note }) {
+  const { data, error } = await supabase.rpc('update_admin_note', {
+    p_order_id: orderId,
+    p_note: note,
+  });
+  if (error) throw error;
+  return data;
 }
 
 // Mark an order as viewed by the admin. Idempotent (only sets the timestamp

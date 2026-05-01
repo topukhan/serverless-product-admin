@@ -3,6 +3,7 @@ import {
   updateOrderStatus,
   updateOrderCharges,
   updateOrderTrackingId,
+  updateAdminNote,
   markOrderViewed,
 } from '../../services/admin-orders.js';
 import { STATUS_META, ZONE_LABELS } from '../../services/orders.js';
@@ -65,12 +66,20 @@ export async function AdminOrderDetailPage(params) {
           </h1>
           <p class="muted text-sm mt-1">Placed ${escapeHtml(placed)}</p>
         </div>
-        <div>${statusBadge(order.status)}</div>
+        <div class="flex items-center gap-2">
+          ${order.source === 'admin'
+            ? `<span class="text-xs font-medium px-2 py-1 rounded-full"
+                     style="background:#ede9fe;color:#5b21b6">Admin order</span>`
+            : `<span class="text-xs font-medium px-2 py-1 rounded-full"
+                     style="background:#e0f2fe;color:#075985">Customer order</span>`}
+          ${statusBadge(order.status)}
+        </div>
       </header>
 
       <div class="grid lg:grid-cols-[1fr_320px] gap-6 items-start">
         <div class="space-y-6">
           ${customerCard(order)}
+          ${adminNoteCard(order)}
           ${itemsCard(order)}
           ${chargesCard(order)}
           ${eventsCard(order)}
@@ -104,6 +113,26 @@ export async function AdminOrderDetailPage(params) {
           rerender();
         } catch (err) {
           showToast(err.message || 'Update failed', { variant: 'error' });
+        }
+      });
+    }
+
+    /* Wire admin note form. */
+    const noteForm = wrap.querySelector('[data-admin-note-form]');
+    if (noteForm) {
+      noteForm.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const ta = noteForm.querySelector('[data-admin-note]');
+        const btn = noteForm.querySelector('button[type="submit"]');
+        btn.disabled = true; btn.textContent = 'Saving…';
+        try {
+          await updateAdminNote({ orderId: order.id, note: ta.value });
+          showToast('Admin note saved', { variant: 'success' });
+          order = await getAdminOrder(order.id);
+          rerender();
+        } catch (err) {
+          showToast(err.message || 'Save failed', { variant: 'error' });
+          btn.disabled = false; btn.textContent = 'Save note';
         }
       });
     }
@@ -228,6 +257,23 @@ function customerCard(order) {
   `;
 }
 
+function adminNoteCard(order) {
+  const val = order.admin_note || '';
+  return `
+    <form data-admin-note-form class="card p-5 sm:p-6">
+      <div class="flex items-center justify-between mb-2">
+        <h2 class="font-semibold">Admin note</h2>
+        <span class="text-[11px] muted">Internal — not shown to the customer</span>
+      </div>
+      <textarea data-admin-note class="input" rows="2" maxlength="500"
+                placeholder="Add an internal note (visible to admins only)">${escapeHtml(val)}</textarea>
+      <div class="mt-3 flex justify-end">
+        <button type="submit" class="btn btn-ghost text-sm">Save note</button>
+      </div>
+    </form>
+  `;
+}
+
 function itemsCard(order) {
   return `
     <div class="card p-5 sm:p-6">
@@ -245,10 +291,20 @@ function itemsCard(order) {
           ${(order.items || []).map((it) => `
             <tr class="border-b" style="border-color:var(--color-border)">
               <td class="py-2.5">
-                <div class="font-medium">${escapeHtml(it.product_name)}</div>
-                ${it.product_id
-                  ? `<div class="text-[11px] muted font-mono">${it.product_id}</div>`
-                  : `<div class="text-[11px] muted">(product removed)</div>`}
+                <div class="flex items-center gap-3">
+                  ${it.image_url
+                    ? `<img src="${escapeHtml(it.image_url)}" alt=""
+                            class="w-10 h-10 rounded object-cover shrink-0"
+                            style="border:1px solid var(--color-border);background:var(--color-surface)" />`
+                    : `<div class="w-10 h-10 rounded shrink-0"
+                            style="border:1px solid var(--color-border);background:var(--color-surface)"></div>`}
+                  <div class="min-w-0">
+                    <div class="font-medium line-clamp-2">${escapeHtml(it.product_name)}</div>
+                    ${!it.product_id
+                      ? `<div class="text-[11px] muted">(product removed)</div>`
+                      : ''}
+                  </div>
+                </div>
               </td>
               <td class="py-2.5 text-right">${formatPrice(it.product_price)}</td>
               <td class="py-2.5 text-right">${it.quantity}</td>
@@ -353,6 +409,11 @@ function actionsCard(order, nexts, meta) {
     <div class="card p-5 sm:p-6">
       <div class="text-xs uppercase muted tracking-wider">Status</div>
       <div class="mt-2 mb-5">${statusBadge(order.status)}</div>
+
+      ${order.status === 'pending'
+        ? `<a href="#/admin/orders/${order.id}/edit"
+              class="btn btn-ghost w-full justify-center text-sm mb-4">Edit order</a>`
+        : ''}
 
       <h2 class="font-semibold text-sm">What's next?</h2>
       <p class="muted text-xs mt-0.5 mb-4">Pick the next step for this order.</p>

@@ -27,6 +27,7 @@ import { AdminSiteSettings } from './pages/admin/site-settings.js';
 import { AdminBrandingPage } from './pages/admin/branding.js';
 import { AdminOrdersListPage } from './pages/admin/orders-list.js';
 import { AdminOrderDetailPage } from './pages/admin/order-detail.js';
+import { AdminOrderCreatePage, AdminOrderEditPage } from './pages/admin/order-create.js';
 import { AdminNotificationsPage } from './pages/admin/notifications.js';
 import { AdminBannersPage } from './pages/admin/banners.js';
 import { AdminComingSoon } from './pages/admin/coming-soon.js';
@@ -80,6 +81,12 @@ async function boot() {
 
   defineRoute('/admin/orders', async (params) =>
     requireAdmin(async () => AdminLayout(await AdminOrdersListPage(params), { active: 'orders' }))
+  );
+  defineRoute('/admin/orders/new', async () =>
+    requireAdmin(async () => AdminLayout(await AdminOrderCreatePage(), { active: 'orders' }))
+  );
+  defineRoute('/admin/orders/:id/edit', async (params) =>
+    requireAdmin(async () => AdminLayout(await AdminOrderEditPage(params), { active: 'orders' }))
   );
   defineRoute('/admin/orders/:id', async (params) =>
     requireAdmin(async () => AdminLayout(await AdminOrderDetailPage(params), { active: 'orders' }))
