@@ -269,41 +269,47 @@ function ThemesSection({ settings, themes, onActiveChanged, onThemesChanged }) {
   function themeRow(theme) {
     const isActive = theme.id === activeId;
     const row = document.createElement('div');
-    row.className = 'card p-4 flex items-center gap-4';
+    row.className = 'card p-4 flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4';
     if (isActive) {
       row.style.borderColor = 'var(--color-primary)';
       row.style.boxShadow = 'var(--ring-focus)';
     }
 
     row.innerHTML = `
-      <input type="radio" name="active-theme" data-active
-             class="shrink-0" ${isActive ? 'checked' : ''} />
-      <div class="flex-1 min-w-0">
-        <div class="font-medium">${escapeHtml(theme.name)}</div>
-        <div class="flex flex-wrap gap-3 mt-2 text-[10px] muted">
-          <div class="flex items-center gap-1">
-            <span class="font-medium">Light</span>
-            ${PALETTE_SLOTS.map((f) => `
-              <span class="inline-block w-4 h-4 rounded"
-                    title="${escapeHtml(f.label)}"
-                    style="background: ${escapeHtml(theme[`light_${f.key}`] || '#ccc')};
-                           border: 1px solid var(--color-border)"></span>
-            `).join('')}
-          </div>
-          <div class="flex items-center gap-1">
-            <span class="font-medium">Dark</span>
-            ${PALETTE_SLOTS.map((f) => `
-              <span class="inline-block w-4 h-4 rounded"
-                    title="${escapeHtml(f.label)}"
-                    style="background: ${escapeHtml(theme[`dark_${f.key}`] || '#222')};
-                           border: 1px solid var(--color-border)"></span>
-            `).join('')}
+      <div class="flex items-start gap-3 flex-1 min-w-0">
+        <input type="radio" name="active-theme" data-active
+               class="shrink-0 mt-1" ${isActive ? 'checked' : ''} />
+        <div class="flex-1 min-w-0">
+          <div class="font-medium">${escapeHtml(theme.name)}</div>
+          <div class="flex flex-col gap-1.5 mt-2 text-[10px] muted">
+            <div class="flex items-center gap-1 flex-wrap">
+              <span class="font-medium w-9 shrink-0">Light</span>
+              ${PALETTE_SLOTS.map((f) => `
+                <span class="inline-block w-4 h-4 rounded"
+                      title="${escapeHtml(f.label)}"
+                      style="background: ${escapeHtml(theme[`light_${f.key}`] || '#ccc')};
+                             border: 1px solid var(--color-border)"></span>
+              `).join('')}
+            </div>
+            <div class="flex items-center gap-1 flex-wrap">
+              <span class="font-medium w-9 shrink-0">Dark</span>
+              ${PALETTE_SLOTS.map((f) => `
+                <span class="inline-block w-4 h-4 rounded"
+                      title="${escapeHtml(f.label)}"
+                      style="background: ${escapeHtml(theme[`dark_${f.key}`] || '#222')};
+                             border: 1px solid var(--color-border)"></span>
+              `).join('')}
+            </div>
           </div>
         </div>
       </div>
-      <div class="flex gap-2 shrink-0">
-        <button data-edit class="btn btn-ghost text-xs">Edit</button>
-        <button data-delete class="btn btn-ghost text-xs" style="color:#b91c1c">Delete</button>
+      <div class="flex gap-2 self-stretch sm:self-auto sm:shrink-0 pt-1 sm:pt-0
+                  border-t sm:border-t-0 -mx-4 sm:mx-0 px-4 sm:px-0"
+           style="border-color: var(--color-border)">
+        <button data-edit
+                class="btn btn-ghost text-xs flex-1 sm:flex-none">Edit</button>
+        <button data-delete
+                class="btn btn-ghost text-xs flex-1 sm:flex-none" style="color:#b91c1c">Delete</button>
       </div>
     `;
 
