@@ -9,6 +9,7 @@ export async function getAdminProducts() {
   const { data, error } = await supabase
     .from('products')
     .select('*')
+    .order('display_order', { ascending: true })
     .order('created_at', { ascending: false });
   if (error) throw error;
   return data;

@@ -28,6 +28,7 @@ import { AdminBrandingPage } from './pages/admin/branding.js';
 import { AdminOrdersListPage } from './pages/admin/orders-list.js';
 import { AdminOrderDetailPage } from './pages/admin/order-detail.js';
 import { AdminNotificationsPage } from './pages/admin/notifications.js';
+import { AdminBannersPage } from './pages/admin/banners.js';
 import { AdminComingSoon } from './pages/admin/coming-soon.js';
 
 async function boot() {
@@ -35,7 +36,7 @@ async function boot() {
 
   /* Public routes */
   defineRoute('/',                       async ()       => Layout(await HomePage()));
-  defineRoute('/products',               async ()       => Layout(await ProductsPage()));
+  defineRoute('/products',               async (params) => Layout(await ProductsPage(params)));
   defineRoute('/product/:id',            async (params) => Layout(await ProductDetailPage(params)));
   defineRoute('/cart',                   async ()       => Layout(await CartPage()));
   defineRoute('/checkout',               async ()       => Layout(await CheckoutPage()));
@@ -86,6 +87,10 @@ async function boot() {
 
   defineRoute('/admin/notifications', async () =>
     requireAdmin(async () => AdminLayout(await AdminNotificationsPage(), { active: 'notifications' }))
+  );
+
+  defineRoute('/admin/banners', async () =>
+    requireAdmin(async () => AdminLayout(await AdminBannersPage(), { active: 'banners' }))
   );
 
   // Friendly 404 wrapped in the public Layout so it gets the header + footer.

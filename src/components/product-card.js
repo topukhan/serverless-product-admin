@@ -55,8 +55,8 @@ export function ProductCard(p, { stats } = {}) {
     : '';
 
   const showSold = getFlag('show_sold');
-  const soldFrag = showSold && Number(p.sold) > 0
-    ? `<span class="muted">${formatSold(p.sold)} sold</span>`
+  const soldFrag = showSold && Number(p.sold_count) > 0
+    ? `<span class="muted">${formatSold(p.sold_count)} sold</span>`
     : '';
   const ratingFrag = stats && stats.count > 0
     ? `<span style="color: var(--color-accent)">${ratingStars(stats.avg)}</span>

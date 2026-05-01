@@ -272,3 +272,6 @@ drop trigger if exists trg_notify_new_review on public.reviews;
 create trigger trg_notify_new_review
   after insert on public.reviews
   for each row execute function public.notify_new_review();
+
+-- ---------- Table grants ----------
+grant select, insert, update, delete on public.notification_config to authenticated;

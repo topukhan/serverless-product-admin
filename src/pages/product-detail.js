@@ -26,6 +26,7 @@ export async function ProductDetailPage({ id }) {
   }
 
   root.appendChild(Hero(product, reviews));
+  if (product.description) root.appendChild(DescriptionSection(product));
   root.appendChild(ReviewsSection(product, reviews));
   root.appendChild(QASection(product, questions));
   return root;
@@ -69,10 +70,10 @@ function Hero(p, reviews) {
   }
 
   const showSold = getFlag('show_sold');
-  const soldLine = (showSold && Number(p.sold) > 0)
+  const soldLine = (showSold && Number(p.sold_count) > 0)
     ? `<span class="inline-flex items-center gap-1.5 text-sm muted">
          <span class="w-2 h-2 rounded-full" style="background: var(--color-muted); opacity: 0.6"></span>
-         ${new Intl.NumberFormat('en-US').format(p.sold)} sold
+         ${new Intl.NumberFormat('en-US').format(p.sold_count)} sold
        </span>`
     : '';
 
@@ -95,9 +96,6 @@ function Hero(p, reviews) {
     <div class="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1">
       ${stockLabel}${soldLine}
     </div>
-    ${p.description ? `
-      <p class="mt-6 leading-relaxed whitespace-pre-line">${escapeHtml(p.description)}</p>
-    ` : ''}
     <div class="mt-8 flex flex-wrap gap-3 items-center">
       <button data-add class="btn btn-primary" ${p.stock <= 0 ? 'disabled' : ''}>
         ${p.stock <= 0 ? 'Sold out' : 'Add to cart'}
@@ -119,6 +117,19 @@ function Hero(p, reviews) {
     });
   }
   sec.appendChild(right);
+  return sec;
+}
+
+/* --------------------------------------------------------- Description */
+
+function DescriptionSection(p) {
+  const sec = document.createElement('section');
+  sec.className = 'mt-12 pt-10 border-t';
+  sec.style.borderColor = 'var(--color-border)';
+  sec.innerHTML = `
+    <h2 class="text-xl font-bold tracking-tight mb-4">Description</h2>
+    <div class="leading-relaxed whitespace-pre-line max-w-2xl">${escapeHtml(p.description)}</div>
+  `;
   return sec;
 }
 

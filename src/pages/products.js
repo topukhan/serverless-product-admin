@@ -2,7 +2,7 @@ import { getCatalog } from '../services/products.js';
 import { ProductCard } from '../components/product-card.js';
 import { escapeHtml } from '../lib/dom.js';
 
-export async function ProductsPage() {
+export async function ProductsPage(params) {
   const el = document.createElement('section');
   el.className = 'container-x py-10';
 
@@ -29,7 +29,9 @@ export async function ProductsPage() {
   }
 
   const { products, categories, catsByProduct, reviewStats } = catalog;
-  let selected = null;
+  // Pre-select category from ?cat= URL param (used by banner CTA)
+  const initialCat = params?.query?.cat || null;
+  let selected = categories.find((c) => c.id === initialCat)?.id ?? null;
 
   function categoryCount(catId) {
     if (catId === null) return products.length;
@@ -96,11 +98,8 @@ function emptyState() {
   return `
     <div class="text-center py-16 rounded-lg"
          style="border:1px dashed var(--color-border); background: var(--color-surface)">
-      <p class="font-medium">Nothing here yet.</p>
-      <p class="text-sm muted mt-1">
-        Try a different filter, or run
-        <code class="px-1 py-0.5 rounded" style="background: var(--color-bg)">supabase/seed.sql</code>.
-      </p>
+      <p class="font-medium">No products found.</p>
+      <p class="text-sm muted mt-1">Try a different filter.</p>
     </div>
   `;
 }

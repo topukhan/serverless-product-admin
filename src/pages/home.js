@@ -1,16 +1,27 @@
 import { getBranding } from '../services/branding.js';
 import { getCatalog } from '../services/products.js';
+import { getBannerSlides } from '../services/banners.js';
 import { ProductCard } from '../components/product-card.js';
+import { BannerCarousel } from '../components/banner-carousel.js';
 import { escapeHtml } from '../lib/dom.js';
 
 export async function HomePage() {
   const b = getBranding();
   const root = document.createElement('div');
 
-  root.appendChild(Hero(b));
+  // Banner carousel (admin-managed). Falls back to static hero if no slides.
+  let slides = [];
+  try { slides = await getBannerSlides(); } catch { /* non-fatal */ }
+
+  const carousel = BannerCarousel(slides);
+  if (carousel) {
+    root.appendChild(carousel);
+  } else {
+    root.appendChild(Hero(b));
+  }
+
   root.appendChild(await Featured());
   root.appendChild(Highlights());
-
   return root;
 }
 
@@ -19,17 +30,11 @@ function Hero(b) {
   el.className = 'container-x section';
   el.innerHTML = `
     <div class="max-w-2xl">
-      <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium"
-            style="background: var(--color-primary-soft); color: var(--color-primary)">
-        <span class="w-1.5 h-1.5 rounded-full" style="background: var(--color-primary)"></span>
-        Live on Supabase
-      </span>
-      <h1 class="mt-5 text-4xl sm:text-5xl font-bold tracking-tight leading-[1.1]">
+      <h1 class="text-4xl sm:text-5xl font-bold tracking-tight leading-[1.1]">
         ${escapeHtml(b.site_name)}
       </h1>
       <p class="mt-4 text-lg muted max-w-xl leading-relaxed">
-        A simple, calm place to browse and buy. Catalog, brand, and theme
-        all flow from the admin panel — change them anytime, no redeploy.
+        Browse and buy. Catalog, brand, and theme all managed from the admin panel.
       </p>
       <div class="mt-7 flex flex-wrap gap-3">
         <a href="#/products" class="btn btn-primary">
@@ -44,7 +49,7 @@ function Hero(b) {
 
 async function Featured() {
   const wrap = document.createElement('section');
-  wrap.className = 'container-x pb-4';
+  wrap.className = 'container-x pb-4 pt-10';
   wrap.innerHTML = `
     <div class="flex items-end justify-between gap-4 mb-6">
       <div>
@@ -66,8 +71,7 @@ async function Featured() {
       grid.outerHTML = `
         <div class="text-center py-12 rounded-lg muted"
              style="border:1px dashed var(--color-border); background: var(--color-surface)">
-          No products yet. Run <code class="px-1 py-0.5 rounded"
-            style="background: var(--color-bg)">supabase/seed.sql</code> to add samples.
+          No products have been added yet.
         </div>`;
       return wrap;
     }

@@ -31,6 +31,17 @@ export async function AdminNotificationsPage() {
       </p>
     </header>
 
+    <!-- Site URL -->
+    <div class="card p-5 sm:p-6 mb-6">
+      <label class="label" for="site-url">Site URL</label>
+      <input id="site-url" data-site-url type="url" class="input" maxlength="300"
+             placeholder="https://yourstore.com"
+             value="${escapeHtml(cfg.site_url || '')}" />
+      <p class="text-xs muted mt-1.5">
+        Added to every notification as a clickable link — e.g. order alerts include a direct link to that order in the admin panel.
+      </p>
+    </div>
+
     <!-- Master + per-event toggles (shared across channels) -->
     <div class="card p-5 sm:p-6 mb-6 space-y-4">
       <div class="flex items-start gap-4">
@@ -84,15 +95,17 @@ export async function AdminNotificationsPage() {
     btn.disabled = true; btn.textContent = 'Saving…';
     try {
       cfg = await saveNotificationConfig({
+        site_url:           root.querySelector('[data-site-url]').value.trim() || null,
         enabled:            masterCb.checked,
         notify_on_order:    root.querySelector('[data-event-order]').checked,
         notify_on_question: root.querySelector('[data-event-question]').checked,
         notify_on_review:   root.querySelector('[data-event-review]').checked,
         // Telegram
+        telegram_enabled:   root.querySelector('[data-toggle="telegram-enabled"]').checked,
         telegram_bot_token: root.querySelector('[data-tg-token]').value.trim() || null,
         telegram_chat_id:   root.querySelector('[data-tg-chat]').value.trim() || null,
         // Email
-        email_enabled:      root.querySelector('[data-email-enabled]').checked,
+        email_enabled:      root.querySelector('[data-toggle="email-enabled"]').checked,
         email_api_key:      root.querySelector('[data-email-key]').value.trim() || null,
         email_from:         root.querySelector('[data-email-from]').value.trim() || null,
         email_to:           root.querySelector('[data-email-to]').value.trim() || null,
@@ -133,11 +146,14 @@ async function runTest(btn, fn, successMsg) {
 function telegramPanel(cfg) {
   return `
     <div class="card p-5 sm:p-6 space-y-5">
-      <div>
-        <h2 class="font-semibold">Telegram</h2>
-        <p class="text-xs muted mt-0.5">
-          Free, instant push to your phone. Token from @BotFather, chat ID from @userinfobot.
-        </p>
+      <div class="flex items-start gap-4">
+        <div class="flex-1">
+          <h2 class="font-semibold">Telegram</h2>
+          <p class="text-xs muted mt-0.5">
+            Free, instant push to your phone. Token from @BotFather, chat ID from @userinfobot.
+          </p>
+        </div>
+        ${bigToggle('telegram-enabled', cfg.telegram_enabled !== false)}
       </div>
 
       <details class="rounded-md p-3" style="background: var(--color-bg)">
@@ -147,7 +163,7 @@ function telegramPanel(cfg) {
               follow prompts → BotFather replies with a token like
               <code>123456789:ABC...</code>. Copy it.</li>
           <li>Open your new bot's chat → tap <strong>Start</strong> → send any message.</li>
-          <li>Search <strong>@userinfobot</strong> → <code>/start</code> → copy your numeric chat ID.</li>
+          <li>In Telegram, search <strong>@userinfobot</strong> → <code>/start</code> → copy your numeric chat ID.</li>
           <li>Paste both below, save, then <strong>Send test</strong>.</li>
         </ol>
       </details>
@@ -255,7 +271,7 @@ function paintTab(btn, active) {
 function bigToggle(key, initial) {
   return `
     <label class="relative inline-flex shrink-0 cursor-pointer">
-      <input data-toggle="${key}" data-${key === 'master' ? 'enabled' : 'email-enabled'}
+      <input data-toggle="${key}"
              type="checkbox" class="sr-only peer" ${initial ? 'checked' : ''} />
       <span class="block w-11 h-6 rounded-full transition" style="background: var(--color-border)"></span>
       <span class="absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-white shadow-sm transition"></span>
@@ -278,7 +294,7 @@ function eventRow(key, label, initial) {
 }
 
 function paintAllToggles(root) {
-  /* Big toggles (master + email-enabled) */
+  /* Big toggles (master + telegram-enabled + email-enabled) */
   root.querySelectorAll('[data-toggle]').forEach((cb) => {
     const track = cb.parentElement.querySelector('span:first-of-type');
     const dot   = cb.parentElement.querySelector('span:last-of-type');

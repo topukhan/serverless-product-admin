@@ -120,3 +120,7 @@ on conflict (name) do nothing;
 update public.settings
    set active_theme_id = (select id from public.themes where name = 'Sand')
  where id = 1 and active_theme_id is null;
+
+-- ---------- Table grants ----------
+grant select                         on public.themes to anon;
+grant select, insert, update, delete on public.themes to authenticated;

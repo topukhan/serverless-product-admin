@@ -21,7 +21,8 @@ export async function AdminProductEdit({ id } = {}) {
     description: '',
     price: 0,
     stock: 0,
-    sold: 0,
+    sold_count: 0,
+    display_order: 0,
     image_url: '',
     gallery_urls: [],
     category_ids: [],
@@ -78,7 +79,7 @@ export async function AdminProductEdit({ id } = {}) {
 
   /* Pricing, stock, sold */
   const pricing = section('Pricing & inventory', `
-    <div class="grid sm:grid-cols-3 gap-4">
+    <div class="grid sm:grid-cols-4 gap-4">
       <div>
         <label class="label" for="f-price">Price (৳)</label>
         <input id="f-price" name="price" type="number" min="0" step="0.01" required
@@ -91,12 +92,17 @@ export async function AdminProductEdit({ id } = {}) {
       </div>
       <div>
         <label class="label" for="f-sold">Sold</label>
-        <input id="f-sold" name="sold" type="number" min="0" step="1"
-               class="input" value="${Number(product.sold) || 0}" />
+        <input id="f-sold" name="sold_count" type="number" min="0" step="1"
+               class="input" value="${Number(product.sold_count) || 0}" />
+      </div>
+      <div>
+        <label class="label" for="f-display-order">Display order</label>
+        <input id="f-display-order" name="display_order" type="number" min="0" step="1"
+               class="input" value="${Number(product.display_order) || 0}" />
       </div>
     </div>
     <p class="text-xs muted mt-2">
-      Visibility of stock numbers and the sold count on the public site
+      Lower display order numbers appear first. Visibility of stock and sold count
       is controlled in <a href="#/admin/site-settings" class="underline">Site settings</a>.
     </p>
   `);
@@ -155,7 +161,8 @@ export async function AdminProductEdit({ id } = {}) {
 
     const price = Number(fd.get('price'));
     const stock = Math.max(0, parseInt(fd.get('stock'), 10) || 0);
-    const sold  = Math.max(0, parseInt(fd.get('sold'),  10) || 0);
+    const sold_count    = Math.max(0, parseInt(fd.get('sold_count'),    10) || 0);
+    const display_order = Math.max(0, parseInt(fd.get('display_order'), 10) || 0);
     const description = String(fd.get('description') || '').trim();
 
     const image_url = thumbUploader.getValue() || null;
@@ -165,7 +172,7 @@ export async function AdminProductEdit({ id } = {}) {
       .filter((c) => c.checked)
       .map((c) => c.value);
 
-    const payload = { name, description, price, stock, sold, image_url, gallery_urls };
+    const payload = { name, description, price, stock, sold_count, display_order, image_url, gallery_urls };
 
     const saveBtns = form.querySelectorAll('[data-save]');
     saveBtns.forEach((b) => { b.disabled = true; b.textContent = 'Saving…'; });

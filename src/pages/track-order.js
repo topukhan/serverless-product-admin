@@ -22,13 +22,12 @@ export async function TrackOrderPage(params) {
       </div>
       <h1 class="mt-5 text-2xl sm:text-3xl font-bold tracking-tight">Track your order</h1>
       <p class="muted mt-2 text-sm">
-        Enter your order ID (e.g. <span class="font-mono">ORD-001234</span>)
-        or the tracking number we gave you.
+        Enter your order ID to check its current status.
       </p>
 
       <form data-form class="mt-6 flex gap-2">
         <input data-q class="input" required maxlength="60"
-               placeholder="ORD-001234 or tracking ID"
+               placeholder="e.g. ORD-001234"
                value="${initial.replace(/"/g, '&quot;')}" />
         <button type="submit" class="btn btn-primary">Track</button>
       </form>

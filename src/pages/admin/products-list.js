@@ -92,11 +92,12 @@ export async function AdminProductsList() {
           <span class="font-semibold" style="color: var(--color-primary)">${formatPrice(p.price)}</span>
         </div>
         <div class="mt-1 flex flex-wrap items-center gap-2 text-xs">
-          <span class="muted">Stock:
+          <span class="muted">Order: <span class="font-medium" style="color:var(--color-text)">${p.display_order ?? 0}</span></span>
+          <span class="muted">· Stock:
             <span class="font-medium" style="${stockTone(p.stock)}">${p.stock}</span>
           </span>
-          ${Number(p.sold) > 0
-            ? `<span class="muted">· Sold: <span class="font-medium" style="color: var(--color-text)">${p.sold}</span></span>`
+          ${Number(p.sold_count) > 0
+            ? `<span class="muted">· Sold: <span class="font-medium" style="color: var(--color-text)">${p.sold_count}</span></span>`
             : ''}
           ${(p.gallery_urls || []).length > 0
             ? `<span class="muted">· Gallery: ${p.gallery_urls.length}</span>` : ''}

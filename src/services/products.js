@@ -6,7 +6,7 @@ import { supabase } from './supabase.js';
 // disabled rows naturally disappear from the catalog.
 export async function getCatalog() {
   const [products, categories, junction, reviews] = await Promise.all([
-    supabase.from('products').select('*').order('created_at', { ascending: false }),
+    supabase.from('products').select('*').order('display_order', { ascending: true }).order('created_at', { ascending: false }),
     supabase.from('categories').select('*').eq('enabled', true).order('name'),
     supabase.from('product_categories').select('*'),
     supabase.from('reviews').select('product_id, rating').eq('enabled', true),

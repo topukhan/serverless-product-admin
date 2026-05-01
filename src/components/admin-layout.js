@@ -16,6 +16,7 @@ const NAV = [
   { key: 'categories',    href: '#/admin/categories',    label: 'Categories',     icon: iconTag },
   { key: 'reviews',       href: '#/admin/reviews',       label: 'Reviews',        icon: iconStar },
   { key: 'questions',     href: '#/admin/questions',     label: 'Questions',      icon: iconChat },
+  { key: 'banners',       href: '#/admin/banners',       label: 'Banners',        icon: iconImage },
   { key: 'branding',      href: '#/admin/branding',      label: 'Branding',       icon: iconPalette },
   { key: 'notifications', href: '#/admin/notifications', label: 'Notifications',  icon: iconBell },
   { key: 'site-settings', href: '#/admin/site-settings', label: 'Site settings',  icon: iconSliders },
@@ -39,13 +40,14 @@ export async function AdminLayout(content, { active = '' } = {}) {
   aside.style.borderColor = 'var(--color-border)';
 
   aside.innerHTML = `
-    <div class="px-5 py-4 flex items-center justify-between lg:justify-start gap-3">
-      <a href="#/" class="flex items-center gap-2.5">
-        <span class="inline-block w-7 h-7 rounded-md" style="background: var(--color-primary)"></span>
+    <div class="px-4 py-3 flex items-center gap-2 lg:px-5 lg:py-4">
+      <a href="#/" class="flex items-center gap-2 flex-1 min-w-0">
+        <span class="inline-block w-7 h-7 rounded-md shrink-0" style="background: var(--color-primary)"></span>
         <span class="font-semibold tracking-tight">Admin</span>
       </a>
-      <button data-mobile-toggle aria-label="Toggle navigation"
-              class="lg:hidden btn-icon">
+      <!-- Mobile-only controls -->
+      <button data-theme-toggle class="btn-icon lg:hidden" aria-label="Toggle theme"></button>
+      <button data-mobile-toggle aria-label="Toggle navigation" class="lg:hidden btn-icon">
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor"
              stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
           <path d="M3 6h18M3 12h18M3 18h18"/>
@@ -57,7 +59,6 @@ export async function AdminLayout(content, { active = '' } = {}) {
       ${NAV.map((it) => navItem(it, active)).join('')}
     </nav>
 
-
     <div class="hidden lg:block px-5 py-4 border-t" style="border-color: var(--color-border)">
       <div class="flex items-center justify-between gap-2">
         <div class="text-xs muted truncate flex-1">${escapeHtml(user?.email || 'Signed in')}</div>
@@ -68,23 +69,39 @@ export async function AdminLayout(content, { active = '' } = {}) {
   `;
 
   // Mobile nav toggle
-  aside.querySelector('[data-mobile-toggle]').addEventListener('click', () => {
-    const nav = aside.querySelector('[data-nav]');
-    nav.classList.toggle('hidden');
+  const mobileNav = aside.querySelector('[data-nav]');
+  aside.querySelector('[data-mobile-toggle]').addEventListener('click', (e) => {
+    e.stopPropagation();
+    mobileNav.classList.toggle('hidden');
   });
 
-  // Admin-side theme toggle. Independent of the public site's preference.
-  const themeBtn = aside.querySelector('[data-theme-toggle]');
+  // Close mobile nav when clicking outside the aside
+  const closeOnOutside = (e) => {
+    if (!aside.isConnected) { document.removeEventListener('click', closeOnOutside); return; }
+    if (!aside.contains(e.target)) mobileNav.classList.add('hidden');
+  };
+  document.addEventListener('click', closeOnOutside);
+
+  // Close mobile nav when a nav link is clicked
+  mobileNav.querySelectorAll('a').forEach((a) =>
+    a.addEventListener('click', () => mobileNav.classList.add('hidden'))
+  );
+
+  // Admin-side theme toggle — there are two buttons (mobile + desktop).
+  const themeBtns = aside.querySelectorAll('[data-theme-toggle]');
   function paintTheme() {
     const scheme = getResolvedColorScheme();
-    themeBtn.innerHTML = scheme === 'dark' ? sunIcon() : moonIcon();
-    themeBtn.title = scheme === 'dark' ? 'Switch admin to light mode' : 'Switch admin to dark mode';
+    const title = scheme === 'dark' ? 'Switch admin to light mode' : 'Switch admin to dark mode';
+    themeBtns.forEach((btn) => {
+      btn.innerHTML = scheme === 'dark' ? sunIcon() : moonIcon();
+      btn.title = title;
+    });
   }
   paintTheme();
-  themeBtn.addEventListener('click', () => {
+  themeBtns.forEach((btn) => btn.addEventListener('click', () => {
     const next = getResolvedColorScheme() === 'dark' ? 'light' : 'dark';
     setColorScheme(next);
-  });
+  }));
   onColorSchemeChange(paintTheme);
 
   // Sign-out (with confirmation)
@@ -204,6 +221,11 @@ function iconSliders() { return `<svg ${ICON_BASE}>
 function iconBell() { return `<svg ${ICON_BASE}>
   <path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"/>
   <path d="M13.73 21a2 2 0 0 1-3.46 0"/>
+</svg>`; }
+function iconImage() { return `<svg ${ICON_BASE}>
+  <rect x="3" y="3" width="18" height="18" rx="2"/>
+  <circle cx="8.5" cy="8.5" r="1.5"/>
+  <polyline points="21 15 16 10 5 21"/>
 </svg>`; }
 
 function sunIcon() {

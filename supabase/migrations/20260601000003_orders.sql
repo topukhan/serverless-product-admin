@@ -486,3 +486,7 @@ as $$
          end;
 $$;
 grant execute on function public.get_pending_order_count() to authenticated;
+
+-- ---------- Table grants ----------
+grant select, insert                 on public.orders, public.order_items, public.order_events to anon;
+grant select, insert, update, delete on public.orders, public.order_items, public.order_events to authenticated;

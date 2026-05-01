@@ -6,6 +6,9 @@
 
 create extension if not exists "pgcrypto";
 
+-- PostgreSQL 15+ restricts public schema access by default; restore it.
+grant usage on schema public to anon, authenticated;
+
 -- ---------- Categories ----------
 create table if not exists public.categories (
   id          uuid primary key default gen_random_uuid(),
@@ -176,6 +179,17 @@ create policy "settings: admin update"
 -- Admins table: admins can see who is an admin. Promotion is manual via SQL.
 create policy "admins: admin read"
   on public.admins for select using (public.is_admin());
+
+-- ---------- Table grants ----------
+-- RLS handles row-level restrictions; these base grants let the roles
+-- reach the tables at all (required on PostgreSQL 15+).
+grant select                       on public.categories, public.products, public.product_categories,
+                                      public.reviews, public.questions, public.settings
+                                   to anon;
+grant insert                       on public.reviews, public.questions to anon;
+grant select, insert, update, delete on public.categories, public.products, public.product_categories,
+                                        public.reviews, public.questions, public.settings, public.admins
+                                   to authenticated;
 
 -- ---------- Storage buckets ----------
 insert into storage.buckets (id, name, public)
