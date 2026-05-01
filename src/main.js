@@ -3,6 +3,7 @@ import './styles/main.css';
 import { loadBranding } from './services/branding.js';
 import { defineRoute, startRouter, setNotFoundHandler } from './services/router.js';
 import { requireAdmin } from './services/admin-guard.js';
+import { installRouteLoader } from './components/route-loader.js';
 
 import { Layout } from './components/layout.js';
 import { AdminLayout } from './components/admin-layout.js';
@@ -15,6 +16,12 @@ import { CheckoutPage } from './pages/checkout.js';
 import { OrderViewPage } from './pages/order-view.js';
 import { TrackOrderPage } from './pages/track-order.js';
 import { NotFoundPage } from './pages/not-found.js';
+import { RegisterPage } from './pages/register.js';
+import { LoginPage } from './pages/login.js';
+import { ForgotPasswordPage } from './pages/forgot-password.js';
+import { AccountPage } from './pages/account.js';
+import { AccountOrdersPage } from './pages/account-orders.js';
+import { AccountOrderPage } from './pages/account-order.js';
 
 import { AdminLoginPage } from './pages/admin/login.js';
 import { AdminDashboard } from './pages/admin/dashboard.js';
@@ -31,9 +38,11 @@ import { AdminOrderCreatePage, AdminOrderEditPage } from './pages/admin/order-cr
 import { AdminNotificationsPage } from './pages/admin/notifications.js';
 import { AdminBannersPage } from './pages/admin/banners.js';
 import { AdminComingSoon } from './pages/admin/coming-soon.js';
+import { AdminCustomersPage } from './pages/admin/customers.js';
 
 async function boot() {
   await loadBranding();
+  installRouteLoader();
 
   /* Public routes */
   defineRoute('/',                       async ()       => Layout(await HomePage()));
@@ -43,6 +52,15 @@ async function boot() {
   defineRoute('/checkout',               async ()       => Layout(await CheckoutPage()));
   defineRoute('/track-order',            async (params) => Layout(await TrackOrderPage(params)));
   defineRoute('/order/:orderNumber',     async (params) => Layout(await OrderViewPage(params)));
+
+  /* Customer auth + account */
+  defineRoute('/register',               async ()       => Layout(await RegisterPage()));
+  defineRoute('/login',                  async ()       => Layout(await LoginPage()));
+  defineRoute('/forgot-password',        async ()       => Layout(ForgotPasswordPage()));
+  defineRoute('/account',                async ()       => Layout(await AccountPage()));
+  defineRoute('/account/orders',         async (params) => Layout(await AccountOrdersPage(params)));
+  defineRoute('/account/orders/:orderNumber',
+              async (params) => Layout(await AccountOrderPage(params)));
 
   /* Admin routes */
   defineRoute('/admin/login',       async () => AdminLoginPage());
@@ -98,6 +116,10 @@ async function boot() {
 
   defineRoute('/admin/banners', async () =>
     requireAdmin(async () => AdminLayout(await AdminBannersPage(), { active: 'banners' }))
+  );
+
+  defineRoute('/admin/customers', async (params) =>
+    requireAdmin(async () => AdminLayout(await AdminCustomersPage(params), { active: 'customers' }))
   );
 
   // Friendly 404 wrapped in the public Layout so it gets the header + footer.

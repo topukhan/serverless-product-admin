@@ -43,22 +43,27 @@ async function renderCurrent() {
   const queryString = qIdx === -1 ? '' : raw.slice(qIdx + 1);
   const query = Object.fromEntries(new URLSearchParams(queryString));
 
-  for (const route of routes) {
-    const m = route.regex.exec(path);
-    if (m) {
-      const params = Object.fromEntries(
-        route.keys.map((k, i) => [k, decodeURIComponent(m[i + 1])])
-      );
-      params.query = query;
-      const node = await route.render(params);
-      outlet.replaceChildren(node);
-      window.scrollTo(0, 0);
-      return;
+  window.dispatchEvent(new CustomEvent('route:start', { detail: { path } }));
+  try {
+    for (const route of routes) {
+      const m = route.regex.exec(path);
+      if (m) {
+        const params = Object.fromEntries(
+          route.keys.map((k, i) => [k, decodeURIComponent(m[i + 1])])
+        );
+        params.query = query;
+        const node = await route.render(params);
+        outlet.replaceChildren(node);
+        window.scrollTo(0, 0);
+        return;
+      }
     }
+    const node = await notFoundHandler(path);
+    outlet.replaceChildren(node);
+    window.scrollTo(0, 0);
+  } finally {
+    window.dispatchEvent(new CustomEvent('route:end', { detail: { path } }));
   }
-  const node = await notFoundHandler(path);
-  outlet.replaceChildren(node);
-  window.scrollTo(0, 0);
 }
 
 function defaultNotFound(path) {

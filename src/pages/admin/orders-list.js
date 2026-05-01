@@ -1,4 +1,5 @@
 import { listOrders, getDashboardStats } from '../../services/admin-orders.js';
+import { supabase } from '../../services/supabase.js';
 import { ORDER_STATUSES } from '../../services/orders.js';
 import { formatPrice } from '../../services/products.js';
 import { statusBadge } from '../../components/status-badge.js';
@@ -198,7 +199,9 @@ export async function AdminOrdersListPage(params) {
             <p class="text-sm muted mt-1">Try adjusting filters or the date range.</p>
           </div>`;
       } else {
-        listEl.replaceChildren(...rows.map(orderRow));
+        const ids = rows.map((r) => r.id);
+        const unreadMap = await fetchUnreadMap(ids);
+        listEl.replaceChildren(...rows.map((o) => orderRow(o, unreadMap.get(o.id) || 0)));
       }
       pagerEl.innerHTML = renderPager(total);
       pagerEl.querySelector('[data-prev]')?.addEventListener('click', () => {
@@ -234,7 +237,23 @@ export async function AdminOrdersListPage(params) {
   return root;
 }
 
-function orderRow(o) {
+async function fetchUnreadMap(orderIds) {
+  const map = new Map();
+  if (!orderIds.length) return map;
+  const { data, error } = await supabase
+    .from('order_messages')
+    .select('order_id')
+    .in('order_id', orderIds)
+    .eq('sender_role', 'customer')
+    .is('read_by_admin_at', null);
+  if (error) return map;
+  for (const row of data || []) {
+    map.set(row.order_id, (map.get(row.order_id) || 0) + 1);
+  }
+  return map;
+}
+
+function orderRow(o, unread = 0) {
   const isNew = o.status === 'pending' && !o.viewed_at;
   const row = document.createElement('a');
   row.href = `#/admin/orders/${o.id}`;
@@ -250,6 +269,10 @@ function orderRow(o) {
         ${isNew
           ? `<span class="text-[10px] font-semibold px-1.5 py-0.5 rounded-full"
                   style="background:#b91c1c;color:#fff">NEW</span>`
+          : ''}
+        ${unread > 0
+          ? `<span class="text-[10px] font-semibold px-1.5 py-0.5 rounded-full"
+                  style="background:#1d4ed8;color:#fff" title="Unread customer messages">💬 ${unread}</span>`
           : ''}
         ${o.tracking_id
           ? `<span class="text-[11px] muted">→ <span class="font-mono">${escapeHtml(o.tracking_id)}</span></span>`

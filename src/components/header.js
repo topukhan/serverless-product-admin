@@ -4,6 +4,10 @@ import {
   setColorScheme,
   onColorSchemeChange,
 } from '../services/branding.js';
+import {
+  isCustomerLoggedIn, onCustomerAuthChange, getCachedCustomerProfile,
+} from '../services/customer-auth.js';
+import { getMyUnreadMessageCount } from '../services/customer-orders.js';
 import { escapeHtml } from '../lib/dom.js';
 import { CartIcon } from './cart-icon.js';
 
@@ -33,8 +37,11 @@ export function Header() {
         ${navLink('#/track-order', 'Track')}
       </nav>
 
-      <!-- Right side: theme toggle + cart + mobile hamburger -->
-      <div class="flex items-center gap-1 shrink-0">
+      <!-- Right side: account + theme + cart + mobile hamburger.
+           The account slot is always visible (no mobile collapse) so the
+           sign-in CTA / account icon is one tap away on every screen. -->
+      <div class="flex items-center gap-1.5 shrink-0">
+        <span data-account-slot></span>
         <button data-theme-toggle class="btn-icon" aria-label="Toggle theme"></button>
         <span data-cart-slot></span>
         <button data-mobile-toggle class="btn-icon sm:hidden" aria-label="Open menu">
@@ -107,7 +114,62 @@ export function Header() {
   updateActive();
   window.addEventListener('hashchange', updateActive);
 
+  // Account / sign-in slot reflects auth state. Logged out -> primary
+  // "Sign in" pill; logged in -> circular avatar icon with unread dot.
+  const accountSlot = el.querySelector('[data-account-slot]');
+
+  async function paintAccount() {
+    if (!isCustomerLoggedIn()) {
+      accountSlot.innerHTML = `
+        <a href="#/login"
+           class="btn btn-primary text-xs sm:text-sm px-3 py-1.5 sm:px-4 sm:py-2"
+           style="border-radius:999px">
+          Sign in
+        </a>`;
+    } else {
+      let unread = 0;
+      try { unread = await getMyUnreadMessageCount(); } catch {}
+      const initials = initialsFromProfile(getCachedCustomerProfile());
+      const dot = unread > 0
+        ? `<span class="absolute -top-0.5 -right-0.5 min-w-[18px] h-[18px] inline-flex items-center justify-center
+                       rounded-full text-[10px] font-semibold px-1"
+                 style="background:#1d4ed8;color:#fff;border:2px solid var(--color-surface)">${unread}</span>`
+        : '';
+      accountSlot.innerHTML = `
+        <a href="#/account" aria-label="My account"
+           class="relative inline-flex items-center justify-center w-9 h-9 rounded-full
+                  text-sm font-semibold transition hover:opacity-90"
+           style="background:var(--color-primary);color:#fff">
+          ${initials || personIcon()}
+          ${dot}
+        </a>`;
+    }
+    updateActive();
+  }
+  paintAccount();
+  onCustomerAuthChange(() => paintAccount());
+  window.addEventListener('hashchange', paintAccount);
+  window.addEventListener('unread-messages:changed', paintAccount);
+
   return el;
+}
+
+function initialsFromProfile(p) {
+  if (!p) return '';
+  const name = (p.full_name || '').trim();
+  if (!name) return '';
+  const parts = name.split(/\s+/).filter(Boolean);
+  const first = parts[0]?.[0] || '';
+  const last  = parts.length > 1 ? parts[parts.length - 1][0] : '';
+  return (first + last).toUpperCase().slice(0, 2);
+}
+
+function personIcon() {
+  return `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+               stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
+    <circle cx="12" cy="7" r="4"/>
+  </svg>`;
 }
 
 function navLink(href, label) {

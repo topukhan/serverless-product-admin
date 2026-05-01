@@ -116,6 +116,22 @@ insert into public.themes (
 )
 on conflict (name) do nothing;
 
+-- Midnight (deep indigo / blue)
+insert into public.themes (
+  name,
+  light_bg, light_surface, light_border, light_text, light_muted,
+  light_primary, light_primary_hover, light_secondary, light_accent,
+  dark_bg, dark_surface, dark_border, dark_text, dark_muted,
+  dark_primary, dark_primary_hover, dark_secondary, dark_accent
+) values (
+  'Midnight',
+  '#f4f6fb', '#ffffff', '#d8dde9', '#0e1736', '#5b6783',
+  '#1e2a78', '#15205e', '#4a5680', '#8b6cd6',
+  '#060814', '#0d1228', '#1c2546', '#e6eaff', '#8b94b8',
+  '#6b7dff', '#8593ff', '#4a5680', '#b298ff'
+)
+on conflict (name) do nothing;
+
 -- Set Sand as the active theme on first run if nothing is selected.
 update public.settings
    set active_theme_id = (select id from public.themes where name = 'Sand')

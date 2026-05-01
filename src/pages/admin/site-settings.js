@@ -23,6 +23,14 @@ const FLAG_SCHEMA = [
       'appears on product cards and detail pages. When OFF it stays hidden. ' +
       'Products with a sold count of 0 never display this regardless.',
   },
+  {
+    key: 'show_route_loader',
+    title: 'Show top progress bar during page transitions',
+    description:
+      'When ON, a thin animated bar appears at the top of the page while ' +
+      'the next page loads. Helpful on slower connections. Turn OFF to keep ' +
+      'navigation completely silent.',
+  },
 ];
 
 export async function AdminSiteSettings() {
@@ -99,6 +107,35 @@ export async function AdminSiteSettings() {
           per-order before shipping.
         </p>
 
+        <div class="sm:col-span-2 pt-2 border-t" style="border-color:var(--color-border)">
+          <div class="text-sm font-medium mb-1">Order chat</div>
+          <p class="text-xs muted">Total messages allowed per order (shared between customer and admin).</p>
+        </div>
+        <div>
+          <label class="label" for="msg-limit">Message limit per order</label>
+          <input id="msg-limit" data-msg-limit type="number" min="0" max="100"
+                 class="input"
+                 value="${escapeHtml(String(brand.order_message_limit ?? 10))}" />
+          <p class="text-xs muted mt-1">Set to 0 to disable order chat entirely.</p>
+        </div>
+
+        <div class="sm:col-span-2 pt-2 border-t" style="border-color:var(--color-border)">
+          <div class="text-sm font-medium mb-1">Customer accounts</div>
+          <p class="text-xs muted">Where the "Send message" button on the public Forgot-password page takes the customer.</p>
+        </div>
+        <div class="sm:col-span-2">
+          <label class="label" for="reset-url">Forgot-password contact link</label>
+          <input id="reset-url" data-reset-url type="url" maxlength="500"
+                 class="input"
+                 placeholder="https://wa.me/8801XXXXXXXXX?text=I%20forgot%20my%20password"
+                 value="${escapeHtml(brand.password_reset_url || '')}" />
+          <p class="text-xs muted mt-1">
+            Where the "Send message" button on <code>/forgot-password</code> takes the customer.
+            Typically a WhatsApp link (<code>https://wa.me/&lt;number&gt;?text=…</code>) or <code>tel:</code> link.
+            Leave empty to disable the button.
+          </p>
+        </div>
+
         <div class="sm:col-span-2 flex justify-end">
           <button type="submit" class="btn btn-primary">Save order policy</button>
         </div>
@@ -121,6 +158,8 @@ export async function AdminSiteSettings() {
     const outside     = Number(ordersForm.querySelector('[data-outside]').value);
     const insideLabel = ordersForm.querySelector('[data-label-inside]').value.trim();
     const outsideLabel= ordersForm.querySelector('[data-label-outside]').value.trim();
+    const msgLimit    = Math.max(0, Math.min(100, Number(ordersForm.querySelector('[data-msg-limit]').value) || 0));
+    const resetUrl    = (ordersForm.querySelector('[data-reset-url]').value || '').trim();
     if (count < 1 || mins < 1 || inside < 0 || outside < 0
         || !insideLabel || !outsideLabel) {
       showToast('Please fill in all fields with valid values.', { variant: 'error' });
@@ -138,6 +177,8 @@ export async function AdminSiteSettings() {
           delivery_charge_outside_dhaka: outside,
           delivery_label_inside_dhaka:   insideLabel,
           delivery_label_outside_dhaka:  outsideLabel,
+          order_message_limit:           msgLimit,
+          password_reset_url:            resetUrl || null,
         })
         .eq('id', 1);
       if (error) throw error;

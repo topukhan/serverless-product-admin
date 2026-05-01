@@ -1,8 +1,10 @@
 import { supabase } from './supabase.js';
+import { getCustomerToken } from './customer-auth.js';
 
 // Place an order. `cart` is the local cart array [{ productId, qty }, ...].
 // `customer` is { name, phone, address, note? }.
-// Returns { order_number, total_amount, ... } from the RPC.
+// If a customer token is in localStorage, we attach it so the order is
+// linked to that account; guest checkout still works without a token.
 export async function placeOrder(customer, cart) {
   const items = cart.map((c) => ({
     product_id: c.productId,
@@ -10,6 +12,7 @@ export async function placeOrder(customer, cart) {
   }));
 
   const payload = {
+    customer_token:   getCustomerToken(),
     customer_name:    customer.name?.trim(),
     customer_phone:   customer.phone?.trim(),
     customer_address: customer.address?.trim(),

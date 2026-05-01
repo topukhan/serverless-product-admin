@@ -5,6 +5,7 @@ import {
   getAdminOrder,
   searchProductsForOrder,
 } from '../../services/admin-orders.js';
+import { searchCustomers } from '../../services/admin-customers.js';
 import { formatPrice } from '../../services/products.js';
 import { getBranding } from '../../services/branding.js';
 import { showToast } from '../../components/toast.js';
@@ -84,6 +85,26 @@ async function OrderFormPage({ mode, orderId = null }) {
       <div class="space-y-5">
         <div class="card p-5 sm:p-6 space-y-4">
           <h2 class="font-semibold">Customer</h2>
+
+          <div>
+            <label class="label">Find existing customer</label>
+            <div class="relative">
+              <input data-cust-search class="input pr-10"
+                     placeholder="Search by name, phone or email…" />
+              <button type="button" data-cust-clear aria-label="Clear customer search"
+                      class="hidden absolute inset-y-0 right-2 flex items-center muted hover:opacity-70">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                     stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+                </svg>
+              </button>
+              <div data-cust-results
+                   class="hidden absolute z-10 left-0 right-0 mt-1 max-h-72 overflow-y-auto rounded-md shadow-md"
+                   style="background:var(--color-surface);border:1px solid var(--color-border)"></div>
+            </div>
+            <p data-cust-selected class="text-xs muted mt-1 hidden">Selected customer auto-filled below. Search again or clear to switch.</p>
+          </div>
+
           <div>
             <label class="label">Name <span style="color:#b91c1c">*</span></label>
             <input data-name class="input" maxlength="80" required
@@ -172,10 +193,110 @@ async function OrderFormPage({ mode, orderId = null }) {
   const submitBtn= root.querySelector('[data-submit]');
 
   let chargeOverridden = isEdit; // don't auto-overwrite charges when editing.
+  let selectedCustomerId = existing?.customer_id || null;
 
   phoneEl.addEventListener('input', () => {
     const cleaned = phoneEl.value.replace(/\D/g, '');
     if (cleaned !== phoneEl.value) phoneEl.value = cleaned;
+  });
+
+  /* ---------- Customer picker ---------- */
+  const custSearchEl  = root.querySelector('[data-cust-search]');
+  const custResultsEl = root.querySelector('[data-cust-results]');
+  const custLabelEl   = root.querySelector('[data-cust-selected]');
+  const custClearEl   = root.querySelector('[data-cust-clear]');
+
+  let custTimer = null;
+  let custLastQuery = null;
+
+  function paintCustClear() {
+    if (custSearchEl.value || selectedCustomerId) custClearEl.classList.remove('hidden');
+    else custClearEl.classList.add('hidden');
+  }
+  paintCustClear();
+
+  function clearCustomerSelection({ wipeFields = true } = {}) {
+    selectedCustomerId = null;
+    custSearchEl.value = '';
+    custResultsEl.innerHTML = '';
+    custResultsEl.classList.add('hidden');
+    custLabelEl.classList.add('hidden');
+    if (wipeFields) {
+      nameEl.value  = '';
+      phoneEl.value = '';
+      addrEl.value  = '';
+      zoneEl.value  = '';
+      if (!chargeOverridden) { chargeEl.value = '0'; paintTotals(); }
+    }
+    paintCustClear();
+    custSearchEl.focus();
+  }
+
+  custClearEl.addEventListener('click', () => clearCustomerSelection());
+
+  async function runCustSearch(term) {
+    custLastQuery = term;
+    try {
+      const rows = await searchCustomers(term, 12);
+      if (custLastQuery !== term) return;
+      paintCustResults(rows);
+    } catch (err) {
+      custResultsEl.innerHTML = `<div class="px-3 py-2 text-sm" style="color:#b91c1c">${escapeHtml(err.message)}</div>`;
+      custResultsEl.classList.remove('hidden');
+    }
+  }
+
+  function paintCustResults(rows) {
+    if (!rows.length) {
+      custResultsEl.innerHTML = `<div class="px-3 py-3 text-sm muted">No customers found.</div>`;
+      custResultsEl.classList.remove('hidden');
+      return;
+    }
+    custResultsEl.innerHTML = rows.map((c) => `
+      <button type="button" data-cust-pick="${escapeHtml(c.id)}"
+              class="w-full text-left px-3 py-2 hover:bg-[var(--color-primary-soft)] flex flex-col gap-0.5 text-sm">
+        <span class="font-medium line-clamp-1">${escapeHtml(c.full_name || '— no name —')}</span>
+        <span class="text-xs muted line-clamp-1">${escapeHtml(c.phone || '')}${c.phone && c.email ? ' · ' : ''}${escapeHtml(c.email || '')}</span>
+        ${c.address ? `<span class="text-xs muted line-clamp-1">${escapeHtml(c.address)}</span>` : ''}
+      </button>
+    `).join('');
+    custResultsEl._rows = new Map(rows.map((c) => [c.id, c]));
+    custResultsEl.classList.remove('hidden');
+  }
+
+  custSearchEl.addEventListener('focus', () => runCustSearch(custSearchEl.value || ''));
+  custSearchEl.addEventListener('input', () => {
+    clearTimeout(custTimer);
+    const term = custSearchEl.value;
+    paintCustClear();
+    custTimer = setTimeout(() => runCustSearch(term), 220);
+  });
+  custSearchEl.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') custResultsEl.classList.add('hidden');
+  });
+  document.addEventListener('click', (e) => {
+    if (!custSearchEl.parentElement.contains(e.target)) custResultsEl.classList.add('hidden');
+  });
+  custResultsEl.addEventListener('click', (e) => {
+    const btn = e.target.closest('[data-cust-pick]');
+    if (!btn) return;
+    const c = custResultsEl._rows?.get(btn.dataset.custPick);
+    if (!c) return;
+    selectedCustomerId = c.id;
+    nameEl.value  = c.full_name || '';
+    phoneEl.value = (c.phone || '').replace(/\D/g, '');
+    addrEl.value  = c.address || '';
+    if (c.delivery_zone) {
+      zoneEl.value = c.delivery_zone;
+      if (!chargeOverridden) {
+        chargeEl.value = String(zoneFee[c.delivery_zone] || 0);
+        paintTotals();
+      }
+    }
+    custSearchEl.value = `${c.full_name || ''} (${c.phone || c.email || ''})`.trim();
+    custLabelEl.classList.remove('hidden');
+    custResultsEl.classList.add('hidden');
+    paintCustClear();
   });
 
   /* ---------- Product picker ---------- */
@@ -326,6 +447,7 @@ async function OrderFormPage({ mode, orderId = null }) {
     submitBtn.textContent = isEdit ? 'Saving…' : 'Creating…';
     try {
       const payload = {
+        customer_id: selectedCustomerId || null,
         customer_name: nameEl.value.trim(),
         customer_phone: phoneEl.value.trim(),
         customer_address: addrEl.value.trim(),

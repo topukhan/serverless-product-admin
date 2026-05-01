@@ -1,5 +1,6 @@
 import { signOut, getUser } from '../services/auth.js';
 import { getPendingOrderCount } from '../services/admin-orders.js';
+import { getAdminUnreadMessageCount } from '../services/order-messages.js';
 import {
   getResolvedColorScheme,
   setColorScheme,
@@ -12,12 +13,13 @@ import { escapeHtml } from '../lib/dom.js';
 const NAV = [
   { key: 'dashboard',     href: '#/admin',               label: 'Dashboard',      icon: iconDashboard },
   { key: 'orders',        href: '#/admin/orders',        label: 'Orders',         icon: iconCart, badge: 'pending' },
+  { key: 'customers',     href: '#/admin/customers',     label: 'Customers',      icon: iconUsers },
   { key: 'products',      href: '#/admin/products',      label: 'Products',       icon: iconBox },
   { key: 'categories',    href: '#/admin/categories',    label: 'Categories',     icon: iconTag },
   { key: 'reviews',       href: '#/admin/reviews',       label: 'Reviews',        icon: iconStar },
   { key: 'questions',     href: '#/admin/questions',     label: 'Questions',      icon: iconChat },
   { key: 'banners',       href: '#/admin/banners',       label: 'Banners',        icon: iconImage },
-  { key: 'branding',      href: '#/admin/branding',      label: 'Branding',       icon: iconPalette },
+  { key: 'branding',      href: '#/admin/branding',      label: 'Theme & Branding', icon: iconPalette },
   { key: 'notifications', href: '#/admin/notifications', label: 'Notifications',  icon: iconBell },
   { key: 'site-settings', href: '#/admin/site-settings', label: 'Site settings',  icon: iconSliders },
 ];
@@ -142,22 +144,31 @@ export function notifyPendingChanged() {
 }
 
 async function paintPendingBadge(aside) {
-  let count = 0;
-  try { count = await getPendingOrderCount(); } catch { /* non-fatal */ }
+  let pending = 0;
+  let unread  = 0;
+  try { pending = await getPendingOrderCount(); } catch { /* non-fatal */ }
+  try { unread  = await getAdminUnreadMessageCount(); } catch { /* non-fatal */ }
   if (!aside.isConnected) return;
   const link = aside.querySelector('a[href="#/admin/orders"]');
   if (!link) return;
-  let badge = link.querySelector('[data-pending-badge]');
+
+  setBadge(link, '[data-pending-badge]', 'pendingBadge', pending, '#b91c1c');
+  setBadge(link, '[data-msg-badge]',     'msgBadge',     unread,  '#1d4ed8', '💬 ');
+}
+
+function setBadge(parent, selector, dataKey, count, bg, prefix = '') {
+  let badge = parent.querySelector(selector);
   if (count > 0) {
     if (!badge) {
       badge = document.createElement('span');
-      badge.dataset.pendingBadge = '';
-      badge.className = 'ml-auto text-[11px] font-semibold px-1.5 py-0.5 rounded-full';
-      badge.style.background = '#b91c1c';
+      badge.dataset[dataKey] = '';
+      badge.className = 'ml-1 text-[11px] font-semibold px-1.5 py-0.5 rounded-full';
+      badge.style.background = bg;
       badge.style.color = '#fff';
-      link.appendChild(badge);
+      parent.appendChild(badge);
     }
-    badge.textContent = String(count);
+    badge.textContent = `${prefix}${count}`;
+    if (selector === '[data-pending-badge]') badge.classList.add('ml-auto');
   } else if (badge) {
     badge.remove();
   }
@@ -226,6 +237,11 @@ function iconImage() { return `<svg ${ICON_BASE}>
   <rect x="3" y="3" width="18" height="18" rx="2"/>
   <circle cx="8.5" cy="8.5" r="1.5"/>
   <polyline points="21 15 16 10 5 21"/>
+</svg>`; }
+function iconUsers() { return `<svg ${ICON_BASE}>
+  <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
+  <circle cx="9" cy="7" r="4"/>
+  <path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>
 </svg>`; }
 
 function sunIcon() {

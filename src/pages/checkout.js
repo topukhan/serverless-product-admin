@@ -1,6 +1,7 @@
 import { getCart, clearCart } from '../services/cart.js';
 import { supabase } from '../services/supabase.js';
 import { placeOrder } from '../services/orders.js';
+import { isCustomerLoggedIn, fetchCustomerProfile } from '../services/customer-auth.js';
 import { formatPrice } from '../services/products.js';
 import { getBranding } from '../services/branding.js';
 import { showToast } from '../components/toast.js';
@@ -169,27 +170,45 @@ export async function CheckoutPage() {
     if (cleaned !== phoneEl.value) phoneEl.value = cleaned;
   });
 
-  // Offer to autofill from a previous order on this device. We defer the
-  // dialog so the page paints first, otherwise the modal appears before the
-  // form is visible.
-  const saved = loadSavedCustomer();
-  if (saved) {
-    setTimeout(async () => {
-      const ok = await confirmDialog({
-        title: 'Use saved details?',
-        message: `We found delivery info from a previous order on this device — ${saved.name}, ${saved.phone}. Want to fill it in?`,
-        confirmText: 'Yes, use these',
-        cancelText: 'No, I\'ll type',
-      });
-      if (ok) {
-        nameEl.value  = saved.name;
-        phoneEl.value = saved.phone.replace(/\D/g, '');
-        addrEl.value  = saved.address;
-      } else {
-        // User said no — drop the saved data so we don't pester them again.
-        clearSavedCustomer();
+  // Logged-in customers: pre-fill from their saved profile and skip the
+  // "use device-saved details" prompt entirely. The profile is the source of
+  // truth for these fields when the visitor has an account.
+  let prefilledFromProfile = false;
+  if (isCustomerLoggedIn()) {
+    try {
+      const prof = await fetchCustomerProfile();
+      if (prof) {
+        if (prof.full_name) nameEl.value  = prof.full_name;
+        if (prof.phone)     phoneEl.value = prof.phone.replace(/\D/g, '');
+        if (prof.address)   addrEl.value  = prof.address;
+        if (prof.delivery_zone && (prof.delivery_zone === 'inside_dhaka' || prof.delivery_zone === 'outside_dhaka')) {
+          // Defer applying the zone to after the picker is wired up below.
+          setTimeout(() => { zone = prof.delivery_zone; paintZones(); }, 0);
+        }
+        prefilledFromProfile = true;
       }
-    }, 60);
+    } catch { /* non-fatal — fall back to localStorage */ }
+  }
+
+  if (!prefilledFromProfile) {
+    const saved = loadSavedCustomer();
+    if (saved) {
+      setTimeout(async () => {
+        const ok = await confirmDialog({
+          title: 'Use saved details?',
+          message: `We found delivery info from a previous order on this device — ${saved.name}, ${saved.phone}. Want to fill it in?`,
+          confirmText: 'Yes, use these',
+          cancelText: 'No, I\'ll type',
+        });
+        if (ok) {
+          nameEl.value  = saved.name;
+          phoneEl.value = saved.phone.replace(/\D/g, '');
+          addrEl.value  = saved.address;
+        } else {
+          clearSavedCustomer();
+        }
+      }, 60);
+    }
   }
 
   const zonesEl = root.querySelector('[data-zones]');

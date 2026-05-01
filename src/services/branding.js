@@ -12,13 +12,16 @@ const FALLBACK_BRAND = {
   delivery_charge_outside_dhaka: 130,
   delivery_label_inside_dhaka:  'Inside Dhaka',
   delivery_label_outside_dhaka: 'Outside Dhaka',
+  order_message_limit:          10,
+  password_reset_url:           '',
 };
 
 // Defaults for site-level feature flags. Add a key here AND in the schema
 // migration if you introduce a new flag.
 export const DEFAULT_FLAGS = {
-  show_stock: true,
-  show_sold:  true,
+  show_stock:        true,
+  show_sold:         true,
+  show_route_loader: true,
 };
 
 // Default light + dark palettes used when nothing is loaded yet.

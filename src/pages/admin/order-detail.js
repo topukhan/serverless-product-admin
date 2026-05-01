@@ -13,6 +13,7 @@ import { statusBadge } from '../../components/status-badge.js';
 import { confirmDialog } from '../../components/dialog.js';
 import { showToast } from '../../components/toast.js';
 import { notifyPendingChanged } from '../../components/admin-layout.js';
+import { OrderChat } from '../../components/order-chat.js';
 import { escapeHtml } from '../../lib/dom.js';
 
 // Map of legal next statuses for each current status. Mirrors the SQL RPC.
@@ -83,6 +84,7 @@ export async function AdminOrderDetailPage(params) {
           ${itemsCard(order)}
           ${chargesCard(order)}
           ${eventsCard(order)}
+          <div data-chat-slot></div>
         </div>
         <aside class="space-y-3">
           ${actionsCard(order, nexts, meta)}
@@ -156,6 +158,15 @@ export async function AdminOrderDetailPage(params) {
           btn.disabled = false; btn.textContent = 'Save charges';
         }
       });
+    }
+
+    const chatSlot = wrap.querySelector('[data-chat-slot]');
+    if (chatSlot) {
+      chatSlot.appendChild(OrderChat({
+        side: 'admin',
+        orderId: order.id,
+        onUnreadChange: () => notifyPendingChanged(),
+      }));
     }
 
     return wrap;
